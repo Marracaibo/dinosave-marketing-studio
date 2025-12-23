@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# Temp files
+temp/*
+!temp/.gitkeep
+output/*
+!output/.gitkeep
+
+# Overlays (upload at runtime)
+assets/overlays/*
+!assets/overlays/.gitkeep
+assets/audio/*
+!assets/audio/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

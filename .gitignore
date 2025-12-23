@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Build
+.next/
+out/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temp files
+backend/temp/
+backend/output/
+backend/uploads/
+*.mp4
+*.mov
+*.webm
+*.mp3
+*.wav
+
+# Keep assets folder structure
+!backend/assets/
+!backend/assets/overlays/.gitkeep
+!backend/assets/audio/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

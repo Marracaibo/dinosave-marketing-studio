@@ -1,0 +1,157 @@
+'use client'
+
+import { useState } from 'react'
+import { Download, Wand2, Music, Film, Sparkles, Upload } from 'lucide-react'
+import VideoInput from '@/components/VideoInput'
+import VideoPreview from '@/components/VideoPreview'
+import OverlaySelector from '@/components/OverlaySelector'
+import AudioSelector from '@/components/AudioSelector'
+import TextOverlay from '@/components/TextOverlay'
+import ProcessButton from '@/components/ProcessButton'
+
+export interface VideoState {
+  videoId: string | null
+  filename: string | null
+  previewUrl: string | null
+  title: string | null
+  duration: number | null
+}
+
+export interface EditSettings {
+  overlayId: string | null
+  overlayPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'
+  overlayScale: number
+  audioId: string | null
+  removeOriginalAudio: boolean
+  textOverlay: string
+  textPosition: 'top-left' | 'top-center' | 'top-right' | 'center' | 'bottom-center'
+  textFontSize: number
+}
+
+export default function Home() {
+  const [video, setVideo] = useState<VideoState>({
+    videoId: null,
+    filename: null,
+    previewUrl: null,
+    title: null,
+    duration: null,
+  })
+
+  const [settings, setSettings] = useState<EditSettings>({
+    overlayId: null,
+    overlayPosition: 'bottom-right',
+    overlayScale: 0.25,
+    audioId: null,
+    removeOriginalAudio: false,
+    textOverlay: '',
+    textPosition: 'top-center',
+    textFontSize: 48,
+  })
+
+  const [outputUrl, setOutputUrl] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const updateSettings = (updates: Partial<EditSettings>) => {
+    setSettings(prev => ({ ...prev, ...updates }))
+  }
+
+  return (
+    <main className="min-h-screen p-4 md:p-8">
+      {/* Header */}
+      <header className="text-center mb-8">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <img src="/logo.png" alt="DinoSave" className="w-20 h-20 object-contain" />
+          <h1 className="text-4xl md:text-5xl font-bold">
+            <span className="gradient-text">DinoSave</span>
+            <span className="text-white"> Marketing Studio</span>
+          </h1>
+        </div>
+        <p className="text-gray-400 text-lg">
+          Scarica, edita e remixa video da TikTok e Instagram 🦖💰
+        </p>
+      </header>
+
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Input & Preview */}
+        <div className="space-y-6">
+          {/* Video Input */}
+          <section className="glass rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Download className="w-5 h-5 text-primary-400" />
+              <h2 className="text-xl font-semibold">Carica Video</h2>
+            </div>
+            <VideoInput 
+              video={video} 
+              setVideo={setVideo} 
+              setOutputUrl={setOutputUrl}
+            />
+          </section>
+
+          {/* Video Preview */}
+          {(video.previewUrl || video.videoId) && (
+            <section className="glass rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Film className="w-5 h-5 text-accent-400" />
+                <h2 className="text-xl font-semibold">Anteprima</h2>
+              </div>
+              <VideoPreview video={video} outputUrl={outputUrl} settings={settings} updateSettings={updateSettings} />
+            </section>
+          )}
+        </div>
+
+        {/* Right Column - Edit Options */}
+        <div className="space-y-6">
+          {/* Overlay Selector */}
+          <section className="glass rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              <h2 className="text-xl font-semibold">Overlay Dino 🦖</h2>
+            </div>
+            <OverlaySelector 
+              settings={settings} 
+              updateSettings={updateSettings} 
+            />
+          </section>
+
+          {/* Audio Selector */}
+          <section className="glass rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Music className="w-5 h-5 text-green-400" />
+              <h2 className="text-xl font-semibold">Audio</h2>
+            </div>
+            <AudioSelector 
+              settings={settings} 
+              updateSettings={updateSettings} 
+            />
+          </section>
+
+          {/* Text Overlay */}
+          <section className="glass rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Wand2 className="w-5 h-5 text-purple-400" />
+              <h2 className="text-xl font-semibold">Testo / Hook</h2>
+            </div>
+            <TextOverlay 
+              settings={settings} 
+              updateSettings={updateSettings} 
+            />
+          </section>
+
+          {/* Process Button */}
+          <ProcessButton
+            video={video}
+            settings={settings}
+            isProcessing={isProcessing}
+            setIsProcessing={setIsProcessing}
+            setOutputUrl={setOutputUrl}
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="text-center mt-12 text-gray-500 text-sm">
+        <p>DinoSave Marketing Studio v1.0 • Creato per il content grind 🦖💰</p>
+      </footer>
+    </main>
+  )
+}
