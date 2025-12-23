@@ -79,22 +79,23 @@ export default function ProcessButton({
       <button
         onClick={handleProcess}
         disabled={!hasVideo || isProcessing}
-        className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
+        className={`w-full py-4 px-4 sm:px-6 rounded-xl font-bold text-base sm:text-lg transition-all flex items-center justify-center gap-2 sm:gap-3 min-h-[56px] ${
           isProcessing
             ? 'bg-gray-600 cursor-wait'
             : hasVideo
-            ? 'bg-gradient-to-r from-primary-600 via-purple-600 to-accent-600 hover:opacity-90 glow-primary'
+            ? 'bg-gradient-to-r from-primary-600 via-purple-600 to-accent-600 hover:opacity-90 active:opacity-80 glow-primary'
             : 'bg-gray-700 cursor-not-allowed opacity-50'
         }`}
       >
         {isProcessing ? (
           <>
-            <Loader2 className="w-6 h-6 animate-spin" />
-            Sto remixando il video...
+            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+            <span className="hidden sm:inline">Sto remixando il video...</span>
+            <span className="sm:hidden">Remixando...</span>
           </>
         ) : (
           <>
-            <Wand2 className="w-6 h-6" />
+            <Wand2 className="w-5 h-5 sm:w-6 sm:h-6" />
             Remixa il Video 🦖
           </>
         )}

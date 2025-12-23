@@ -131,24 +131,24 @@ export default function VideoInput({ video, setVideo, setOutputUrl }: VideoInput
       <div className="flex gap-2">
         <button
           onClick={() => setMode('url')}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+          className={`flex-1 py-3 px-3 sm:px-4 rounded-lg font-medium transition-all text-sm sm:text-base min-h-[48px] ${
             mode === 'url'
               ? 'bg-primary-600 text-white'
-              : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              : 'bg-white/10 text-gray-300 hover:bg-white/20 active:bg-white/30'
           }`}
         >
-          <Link className="w-4 h-4 inline mr-2" />
+          <Link className="w-4 h-4 inline mr-1 sm:mr-2" />
           Da Link
         </button>
         <button
           onClick={() => setMode('upload')}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+          className={`flex-1 py-3 px-3 sm:px-4 rounded-lg font-medium transition-all text-sm sm:text-base min-h-[48px] ${
             mode === 'upload'
               ? 'bg-primary-600 text-white'
-              : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              : 'bg-white/10 text-gray-300 hover:bg-white/20 active:bg-white/30'
           }`}
         >
-          <Upload className="w-4 h-4 inline mr-2" />
+          <Upload className="w-4 h-4 inline mr-1 sm:mr-2" />
           Upload
         </button>
       </div>

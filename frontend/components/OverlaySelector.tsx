@@ -172,15 +172,15 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
               <Move className="w-4 h-4" />
               Posizione
             </label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {POSITIONS.map((pos) => (
                 <button
                   key={pos.value}
                   onClick={() => updateSettings({ overlayPosition: pos.value })}
-                  className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`py-2 px-2 rounded-lg text-xs font-medium transition-all min-h-[44px] ${
                     settings.overlayPosition === pos.value
                       ? 'bg-primary-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20 active:bg-white/30'
                   }`}
                 >
                   {pos.label}

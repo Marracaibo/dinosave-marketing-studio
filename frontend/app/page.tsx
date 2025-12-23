@@ -57,16 +57,16 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-4 md:p-8">
-      {/* Header */}
-      <header className="text-center mb-8">
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <img src="/logo.png" alt="DinoSave" className="w-20 h-20 object-contain" />
-          <h1 className="text-4xl md:text-5xl font-bold">
+      {/* Header - Mobile Optimized */}
+      <header className="text-center mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-3 md:mb-4">
+          <img src="/logo.png" alt="DinoSave" className="w-14 h-14 sm:w-20 sm:h-20 object-contain" />
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold">
             <span className="gradient-text">DinoSave</span>
-            <span className="text-white"> Marketing Studio</span>
+            <span className="text-white block sm:inline"> Marketing Studio</span>
           </h1>
         </div>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-400 text-sm sm:text-lg px-4">
           Scarica, edita e remixa video da TikTok e Instagram 🦖💰
         </p>
       </header>
@@ -75,10 +75,10 @@ export default function Home() {
         {/* Left Column - Input & Preview */}
         <div className="space-y-6">
           {/* Video Input */}
-          <section className="glass rounded-2xl p-6">
+          <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Download className="w-5 h-5 text-primary-400" />
-              <h2 className="text-xl font-semibold">Carica Video</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Carica Video</h2>
             </div>
             <VideoInput 
               video={video} 
@@ -89,10 +89,10 @@ export default function Home() {
 
           {/* Video Preview */}
           {(video.previewUrl || video.videoId) && (
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Film className="w-5 h-5 text-accent-400" />
-                <h2 className="text-xl font-semibold">Anteprima</h2>
+                <h2 className="text-lg sm:text-xl font-semibold">Anteprima</h2>
               </div>
               <VideoPreview video={video} outputUrl={outputUrl} settings={settings} updateSettings={updateSettings} />
             </section>
@@ -102,10 +102,10 @@ export default function Home() {
         {/* Right Column - Edit Options */}
         <div className="space-y-6">
           {/* Overlay Selector */}
-          <section className="glass rounded-2xl p-6">
+          <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-xl font-semibold">Overlay Dino 🦖</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Overlay Dino 🦖</h2>
             </div>
             <OverlaySelector 
               settings={settings} 
@@ -114,10 +114,10 @@ export default function Home() {
           </section>
 
           {/* Audio Selector */}
-          <section className="glass rounded-2xl p-6">
+          <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Music className="w-5 h-5 text-green-400" />
-              <h2 className="text-xl font-semibold">Audio</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Audio</h2>
             </div>
             <AudioSelector 
               settings={settings} 
@@ -126,10 +126,10 @@ export default function Home() {
           </section>
 
           {/* Text Overlay */}
-          <section className="glass rounded-2xl p-6">
+          <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Wand2 className="w-5 h-5 text-purple-400" />
-              <h2 className="text-xl font-semibold">Testo / Hook</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Testo / Hook</h2>
             </div>
             <TextOverlay 
               settings={settings} 
