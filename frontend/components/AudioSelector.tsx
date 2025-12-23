@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Upload, Trash2, Check, Volume2, VolumeX, Play, Pause } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { EditSettings } from '@/app/page'
+import { apiUrl } from '@/lib/api'
 
 interface AudioFile {
   id: string
@@ -25,7 +26,7 @@ export default function AudioSelector({ settings, updateSettings }: AudioSelecto
 
   const fetchAudio = async () => {
     try {
-      const response = await fetch('/api/assets/audio')
+      const response = await fetch(apiUrl('/api/assets/audio'))
       const data = await response.json()
       setAudioFiles(data.audio || [])
     } catch (error) {
@@ -46,7 +47,7 @@ export default function AudioSelector({ settings, updateSettings }: AudioSelecto
     formData.append('file', file)
 
     try {
-      const response = await fetch('/api/assets/audio/upload', {
+      const response = await fetch(apiUrl('/api/assets/audio/upload'), {
         method: 'POST',
         body: formData,
       })

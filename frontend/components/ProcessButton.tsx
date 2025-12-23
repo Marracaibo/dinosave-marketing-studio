@@ -3,6 +3,7 @@
 import { Wand2, Loader2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { VideoState, EditSettings } from '@/app/page'
+import { apiUrl } from '@/lib/api'
 
 interface ProcessButtonProps {
   video: VideoState
@@ -32,7 +33,7 @@ export default function ProcessButton({
     setOutputUrl(null)
 
     try {
-      const response = await fetch('/api/process/remix', {
+      const response = await fetch(apiUrl('/api/process/remix'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Play, Download, CheckCircle, Move, Maximize2 } from 'lucide-react'
 import type { VideoState, EditSettings } from '@/app/page'
+import { apiUrl } from '@/lib/api'
 
 interface VideoPreviewProps {
   video: VideoState
@@ -40,7 +41,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   // Carica l'URL dell'overlay selezionato
   useEffect(() => {
     if (settings.overlayId) {
-      fetch('/api/assets/overlays')
+      fetch(apiUrl('/api/assets/overlays'))
         .then(res => res.json())
         .then(data => {
           const overlay = data.overlays?.find((o: OverlayInfo) => o.id === settings.overlayId)

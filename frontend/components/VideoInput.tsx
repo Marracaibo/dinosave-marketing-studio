@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, Link, Loader2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { VideoState } from '@/app/page'
+import { apiUrl } from '@/lib/api'
 
 interface VideoInputProps {
   video: VideoState
@@ -27,7 +28,7 @@ export default function VideoInput({ video, setVideo, setOutputUrl }: VideoInput
     setOutputUrl(null)
 
     try {
-      const response = await fetch('/api/download/', {
+      const response = await fetch(apiUrl('/api/download/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, remove_watermark: true }),
@@ -74,7 +75,7 @@ export default function VideoInput({ video, setVideo, setOutputUrl }: VideoInput
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/process/upload-video', {
+      const response = await fetch(apiUrl('/api/process/upload-video'), {
         method: 'POST',
         body: formData,
       })

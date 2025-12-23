@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Upload, Trash2, Check, Move } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { EditSettings } from '@/app/page'
+import { apiUrl } from '@/lib/api'
 
 interface Overlay {
   id: string
@@ -32,7 +33,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
 
   const fetchOverlays = async () => {
     try {
-      const response = await fetch('/api/assets/overlays')
+      const response = await fetch(apiUrl('/api/assets/overlays'))
       const data = await response.json()
       setOverlays(data.overlays || [])
     } catch (error) {
@@ -53,7 +54,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
     formData.append('file', file)
 
     try {
-      const response = await fetch('/api/assets/overlays/upload', {
+      const response = await fetch(apiUrl('/api/assets/overlays/upload'), {
         method: 'POST',
         body: formData,
       })
@@ -74,7 +75,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/assets/overlays/${id}`, { method: 'DELETE' })
+      await fetch(apiUrl(`/api/assets/overlays/${id}`), { method: 'DELETE' })
       if (settings.overlayId === id) {
         updateSettings({ overlayId: null })
       }
