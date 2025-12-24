@@ -17,6 +17,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-scarica i modelli rembg durante il build (evita timeout al primo avvio)
+RUN python -c "from rembg import new_session; new_session('u2net')"
+
 # Copia il codice
 COPY . .
 
