@@ -16,11 +16,13 @@ interface OverlayInfo {
   id: string
   filename: string
   url: string
+  type: string
 }
 
 export default function VideoPreview({ video, outputUrl, settings, updateSettings }: VideoPreviewProps) {
   const [showOriginal, setShowOriginal] = useState(true)
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null)
+  const [overlayType, setOverlayType] = useState<string>('video')
   
   // Drag & resize state
   const [overlayPos, setOverlayPos] = useState({ x: 70, y: 70 }) // percentuale
@@ -47,11 +49,16 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
           const overlay = data.overlays?.find((o: OverlayInfo) => o.id === settings.overlayId)
           if (overlay) {
             setOverlayUrl(overlay.url)
+            setOverlayType(overlay.type || 'video')
           }
         })
-        .catch(() => setOverlayUrl(null))
+        .catch(() => {
+          setOverlayUrl(null)
+          setOverlayType('video')
+        })
     } else {
       setOverlayUrl(null)
+      setOverlayType('video')
     }
   }, [settings.overlayId])
 
@@ -206,15 +213,23 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                 onMouseDown={handleDragStart}
                 onTouchStart={handleDragStart}
               >
-                {/* Overlay Video */}
-                <video
-                  src={overlayUrl}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-auto pointer-events-none"
-                />
+                {/* Overlay Video or Image */}
+                {overlayType === 'video' ? (
+                  <video
+                    src={overlayUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-auto pointer-events-none"
+                  />
+                ) : (
+                  <img
+                    src={overlayUrl}
+                    alt="Overlay"
+                    className="w-full h-auto pointer-events-none"
+                  />
+                )}
                 {/* Resize Handle */}
                 <div
                   className="absolute bottom-0 right-0 w-6 h-6 bg-white/30 rounded-tl-lg cursor-se-resize flex items-center justify-center hover:bg-white/50 transition-colors"
