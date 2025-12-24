@@ -171,12 +171,12 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
             >
               <Trash2 className="w-3 h-3 text-white" />
             </button>
-            {/* Remove Background Button - solo per immagini */}
-            {overlay.type === 'image' && !overlay.id.endsWith('_nobg') && (
+            {/* Remove Background Button - per tutti gli overlay */}
+            {!overlay.id.endsWith('_nobg') && (
               <button
                 onClick={() => handleRemoveBackground(overlay.id)}
                 className="absolute -top-2 left-1/2 -translate-x-1/2 bg-purple-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Rimuovi sfondo"
+                title="Rimuovi sfondo (AI)"
                 disabled={isLoading}
               >
                 <Wand2 className="w-3 h-3 text-white" />

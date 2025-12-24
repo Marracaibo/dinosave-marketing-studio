@@ -144,32 +144,61 @@ async def delete_audio(audio_id: str):
 
 @router.post("/overlays/{overlay_id}/remove-background")
 async def remove_overlay_background(overlay_id: str):
-    """Rimuove lo sfondo da un overlay usando AI (rembg)"""
+    """Rimuove lo sfondo da un overlay usando AI (rembg). Supporta immagini e video (estrae primo frame)."""
     if not REMBG_AVAILABLE:
         raise HTTPException(status_code=500, detail="rembg non disponibile sul server")
     
-    # Trova l'overlay
+    # Trova l'overlay (immagine o video)
     overlay_path = None
+    is_video = False
+    
+    # Prima cerca immagini
     for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
         test_path = OVERLAYS_DIR / f"{overlay_id}{ext}"
         if test_path.exists():
             overlay_path = test_path
             break
     
-    # Se non trovato con estensione, cerca il file esatto
+    # Se non trovato, cerca video
+    if not overlay_path:
+        for ext in ['.mp4', '.mov', '.webm']:
+            test_path = OVERLAYS_DIR / f"{overlay_id}{ext}"
+            if test_path.exists():
+                overlay_path = test_path
+                is_video = True
+                break
+    
+    # Se ancora non trovato, cerca per stem
     if not overlay_path:
         for file in OVERLAYS_DIR.iterdir():
-            if file.stem == overlay_id and file.suffix.lower() in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
+            if file.stem == overlay_id:
                 overlay_path = file
+                is_video = file.suffix.lower() in ['.mp4', '.mov', '.webm']
                 break
     
     if not overlay_path:
-        raise HTTPException(status_code=404, detail="Overlay non trovato o formato non supportato (solo immagini)")
+        raise HTTPException(status_code=404, detail="Overlay non trovato")
     
     try:
-        # Leggi l'immagine
-        with open(overlay_path, "rb") as f:
-            input_data = f.read()
+        # Se è un video, estrai il primo frame
+        if is_video:
+            from moviepy.editor import VideoFileClip
+            import tempfile
+            
+            # Estrai frame dal video
+            clip = VideoFileClip(str(overlay_path))
+            frame = clip.get_frame(0)  # Primo frame
+            clip.close()
+            
+            # Converti in immagine PIL e poi in bytes
+            img = Image.fromarray(frame)
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            input_data = buffer.getvalue()
+        else:
+            # Leggi l'immagine direttamente
+            with open(overlay_path, "rb") as f:
+                input_data = f.read()
         
         # Rimuovi lo sfondo usando rembg (esegui in thread per non bloccare)
         loop = asyncio.get_event_loop()
@@ -187,7 +216,7 @@ async def remove_overlay_background(overlay_id: str):
             "id": f"{overlay_id}_nobg",
             "filename": output_filename,
             "url": f"/assets/overlays/{output_filename}",
-            "message": "Sfondo rimosso con successo!"
+            "message": "Sfondo rimosso con successo!" + (" (estratto da video)" if is_video else "")
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore durante la rimozione sfondo: {str(e)}")
