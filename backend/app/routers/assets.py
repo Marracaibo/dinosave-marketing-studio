@@ -142,11 +142,15 @@ async def delete_audio(audio_id: str):
     raise HTTPException(status_code=404, detail="Audio non trovato")
 
 
-@router.post("/overlays/{overlay_id}/remove-background")
+@router.post("/overlays/{overlay_id:path}/remove-background")
 async def remove_overlay_background(overlay_id: str):
     """Rimuove lo sfondo da un overlay usando AI (rembg). Supporta immagini e video (estrae primo frame)."""
     if not REMBG_AVAILABLE:
         raise HTTPException(status_code=500, detail="rembg non disponibile sul server")
+    
+    # Decodifica l'ID (potrebbe contenere spazi o caratteri speciali)
+    from urllib.parse import unquote
+    overlay_id = unquote(overlay_id)
     
     # Trova l'overlay (immagine o video)
     overlay_path = None
@@ -168,16 +172,16 @@ async def remove_overlay_background(overlay_id: str):
                 is_video = True
                 break
     
-    # Se ancora non trovato, cerca per stem
+    # Se ancora non trovato, cerca per stem (confronto case-insensitive)
     if not overlay_path:
         for file in OVERLAYS_DIR.iterdir():
-            if file.stem == overlay_id:
+            if file.stem.lower() == overlay_id.lower() or file.stem == overlay_id:
                 overlay_path = file
                 is_video = file.suffix.lower() in ['.mp4', '.mov', '.webm']
                 break
     
     if not overlay_path:
-        raise HTTPException(status_code=404, detail="Overlay non trovato")
+        raise HTTPException(status_code=404, detail=f"Overlay '{overlay_id}' non trovato")
     
     try:
         # Se è un video, estrai il primo frame
