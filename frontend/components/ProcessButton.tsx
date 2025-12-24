@@ -41,6 +41,7 @@ export default function ProcessButton({
           overlay_id: settings.overlayId,
           overlay_position: settings.overlayPosition,
           overlay_scale: settings.overlayScale,
+          remove_green_screen: settings.removeGreenScreen,
           audio_id: settings.audioId,
           remove_original_audio: settings.removeOriginalAudio,
           text_overlay: settings.textOverlay || null,

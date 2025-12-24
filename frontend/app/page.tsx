@@ -21,6 +21,7 @@ export interface EditSettings {
   overlayId: string | null
   overlayPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'
   overlayScale: number
+  removeGreenScreen: boolean
   audioId: string | null
   removeOriginalAudio: boolean
   textOverlay: string
@@ -41,6 +42,7 @@ export default function Home() {
     overlayId: null,
     overlayPosition: 'bottom-right',
     overlayScale: 0.25,
+    removeGreenScreen: true,
     audioId: null,
     removeOriginalAudio: false,
     textOverlay: '',

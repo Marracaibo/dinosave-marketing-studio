@@ -206,6 +206,23 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
               className="w-full accent-primary-500"
             />
           </div>
+
+          {/* Remove Green Screen */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-400">Rimuovi sfondo verde</label>
+            <button
+              onClick={() => updateSettings({ removeGreenScreen: !settings.removeGreenScreen })}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                settings.removeGreenScreen ? 'bg-green-500' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  settings.removeGreenScreen ? 'left-7' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       )}
     </div>

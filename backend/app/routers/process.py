@@ -27,6 +27,7 @@ class ProcessRequest(BaseModel):
     overlay_id: Optional[str] = None
     overlay_position: str = "bottom-right"  # top-left, top-right, bottom-left, bottom-right, center
     overlay_scale: float = 0.25  # 25% della dimensione video
+    remove_green_screen: bool = True  # Rimuovi sfondo verde dall'overlay
     audio_id: Optional[str] = None
     remove_original_audio: bool = False
     text_overlay: Optional[str] = None
@@ -122,8 +123,14 @@ async def process_video(request: ProcessRequest):
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Scala l'overlay
-            scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+            # Rimuovi sfondo verde (chroma key) se richiesto
+            if request.remove_green_screen:
+                # chromakey rimuove il verde, poi scala
+                chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
+                filter_complex.append(chroma_filter)
+                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+            else:
+                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             filter_complex.append(scale_filter)
             
             # Posizione overlay
