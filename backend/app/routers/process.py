@@ -33,6 +33,13 @@ class ProcessRequest(BaseModel):
     text_overlay: Optional[str] = None
     text_position: str = "top-center"
     text_font_size: int = 48
+    # Video editing
+    trim_start: float = 0  # Secondi dall'inizio
+    trim_end: Optional[float] = None  # Secondi, None = fine video
+    brightness: int = 0  # -50 a 50
+    contrast: int = 0  # -50 a 50
+    saturation: int = 0  # -50 a 50
+    playback_speed: float = 1.0  # 0.5 a 2.0
 
 class ProcessResponse(BaseModel):
     success: bool
@@ -97,10 +104,42 @@ async def process_video(request: ProcessRequest):
     source_path = source_files[0]
     
     # Costruisci il comando FFmpeg
-    cmd = [FFMPEG_PATH, "-y", "-i", str(source_path)]
+    cmd = [FFMPEG_PATH, "-y"]
+    
+    # Trim: seek to start
+    if request.trim_start > 0:
+        cmd.extend(["-ss", str(request.trim_start)])
+    
+    cmd.extend(["-i", str(source_path)])
+    
+    # Trim: duration
+    if request.trim_end and request.trim_end > request.trim_start:
+        duration = request.trim_end - request.trim_start
+        cmd.extend(["-t", str(duration)])
     
     filter_complex = []
     current_stream = "[0:v]"
+    
+    # Video filters (brightness, contrast, saturation, speed)
+    video_filters = []
+    
+    # Brightness/Contrast/Saturation usando eq filter
+    if request.brightness != 0 or request.contrast != 0 or request.saturation != 0:
+        # FFmpeg eq: brightness va da -1 a 1, contrast da 0.5 a 1.5, saturation da 0 a 3
+        brightness = request.brightness / 100  # -0.5 a 0.5
+        contrast = 1 + (request.contrast / 100)  # 0.5 a 1.5
+        saturation = 1 + (request.saturation / 50)  # 0 a 2
+        video_filters.append(f"eq=brightness={brightness}:contrast={contrast}:saturation={saturation}")
+    
+    # Playback speed
+    if request.playback_speed != 1.0:
+        video_filters.append(f"setpts={1/request.playback_speed}*PTS")
+    
+    # Applica filtri video base
+    if video_filters:
+        combined = ",".join(video_filters)
+        filter_complex.append(f"[0:v]{combined}[vbase]")
+        current_stream = "[vbase]"
     
     # Overlay video (dino)
     if request.overlay_id:
@@ -172,6 +211,11 @@ async def process_video(request: ProcessRequest):
         cmd.extend(["-c:v", "copy"])
     
     # Gestione audio
+    audio_filter = None
+    if request.playback_speed != 1.0:
+        # Modifica velocità audio per matchare il video
+        audio_filter = f"atempo={request.playback_speed}"
+    
     if request.audio_id:
         audio_path = ASSETS_DIR / "audio" / request.audio_id
         if audio_path.exists():
@@ -182,10 +226,14 @@ async def process_video(request: ProcessRequest):
             cmd.extend(["-shortest"])
         elif not request.remove_original_audio:
             cmd.extend(["-map", "0:a?"])
+            if audio_filter:
+                cmd.extend(["-af", audio_filter])
     elif request.remove_original_audio:
         cmd.extend(["-an"])
     else:
         cmd.extend(["-map", "0:a?"])
+        if audio_filter:
+            cmd.extend(["-af", audio_filter])
     
     # Output settings
     cmd.extend([

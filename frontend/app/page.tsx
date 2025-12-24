@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Wand2, Music, Film, Sparkles, Upload } from 'lucide-react'
+import { Download, Wand2, Music, Film, Sparkles, Upload, Sliders } from 'lucide-react'
 import VideoInput from '@/components/VideoInput'
 import VideoPreview from '@/components/VideoPreview'
+import VideoEditor from '@/components/VideoEditor'
 import OverlaySelector from '@/components/OverlaySelector'
 import AudioSelector from '@/components/AudioSelector'
 import TextOverlay from '@/components/TextOverlay'
@@ -27,6 +28,13 @@ export interface EditSettings {
   textOverlay: string
   textPosition: 'top-left' | 'top-center' | 'top-right' | 'center' | 'bottom-center'
   textFontSize: number
+  // Video editing
+  trimStart: number
+  trimEnd: number
+  brightness: number
+  contrast: number
+  saturation: number
+  playbackSpeed: number
 }
 
 export default function Home() {
@@ -48,6 +56,13 @@ export default function Home() {
     textOverlay: '',
     textPosition: 'top-center',
     textFontSize: 48,
+    // Video editing defaults
+    trimStart: 0,
+    trimEnd: 0, // 0 = use full video
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    playbackSpeed: 1,
   })
 
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
@@ -114,6 +129,21 @@ export default function Home() {
               updateSettings={updateSettings} 
             />
           </section>
+
+          {/* Video Editor */}
+          {video.videoId && (
+            <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sliders className="w-5 h-5 text-cyan-400" />
+                <h2 className="text-lg sm:text-xl font-semibold">Modifica Video ✂️</h2>
+              </div>
+              <VideoEditor 
+                settings={settings} 
+                updateSettings={updateSettings}
+                videoDuration={video.duration}
+              />
+            </section>
+          )}
 
           {/* Audio Selector */}
           <section className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">

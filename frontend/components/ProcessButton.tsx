@@ -21,7 +21,8 @@ export default function ProcessButton({
   setOutputUrl,
 }: ProcessButtonProps) {
   const hasVideo = !!video.videoId
-  const hasEdits = settings.overlayId || settings.audioId || settings.textOverlay || settings.removeOriginalAudio
+  const hasVideoEdits = settings.trimStart > 0 || settings.trimEnd > 0 || settings.brightness !== 0 || settings.contrast !== 0 || settings.saturation !== 0 || settings.playbackSpeed !== 1
+  const hasEdits = settings.overlayId || settings.audioId || settings.textOverlay || settings.removeOriginalAudio || hasVideoEdits
 
   const handleProcess = async () => {
     if (!video.videoId) {
@@ -47,6 +48,13 @@ export default function ProcessButton({
           text_overlay: settings.textOverlay || null,
           text_position: settings.textPosition,
           text_font_size: settings.textFontSize,
+          // Video editing
+          trim_start: settings.trimStart,
+          trim_end: settings.trimEnd || null,
+          brightness: settings.brightness,
+          contrast: settings.contrast,
+          saturation: settings.saturation,
+          playback_speed: settings.playbackSpeed,
         }),
       })
 
