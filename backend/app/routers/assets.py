@@ -3,6 +3,16 @@ from typing import List
 from pathlib import Path
 import shutil
 import os
+from PIL import Image
+from io import BytesIO
+import asyncio
+
+# Import rembg per rimozione sfondo AI
+try:
+    from rembg import remove
+    REMBG_AVAILABLE = True
+except ImportError:
+    REMBG_AVAILABLE = False
 
 router = APIRouter()
 
@@ -130,3 +140,54 @@ async def delete_audio(audio_id: str):
         return {"success": True, "message": "Audio eliminato"}
     
     raise HTTPException(status_code=404, detail="Audio non trovato")
+
+
+@router.post("/overlays/{overlay_id}/remove-background")
+async def remove_overlay_background(overlay_id: str):
+    """Rimuove lo sfondo da un overlay usando AI (rembg)"""
+    if not REMBG_AVAILABLE:
+        raise HTTPException(status_code=500, detail="rembg non disponibile sul server")
+    
+    # Trova l'overlay
+    overlay_path = None
+    for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
+        test_path = OVERLAYS_DIR / f"{overlay_id}{ext}"
+        if test_path.exists():
+            overlay_path = test_path
+            break
+    
+    # Se non trovato con estensione, cerca il file esatto
+    if not overlay_path:
+        for file in OVERLAYS_DIR.iterdir():
+            if file.stem == overlay_id and file.suffix.lower() in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
+                overlay_path = file
+                break
+    
+    if not overlay_path:
+        raise HTTPException(status_code=404, detail="Overlay non trovato o formato non supportato (solo immagini)")
+    
+    try:
+        # Leggi l'immagine
+        with open(overlay_path, "rb") as f:
+            input_data = f.read()
+        
+        # Rimuovi lo sfondo usando rembg (esegui in thread per non bloccare)
+        loop = asyncio.get_event_loop()
+        output_data = await loop.run_in_executor(None, remove, input_data)
+        
+        # Salva come PNG con trasparenza
+        output_filename = f"{overlay_id}_nobg.png"
+        output_path = OVERLAYS_DIR / output_filename
+        
+        with open(output_path, "wb") as f:
+            f.write(output_data)
+        
+        return {
+            "success": True,
+            "id": f"{overlay_id}_nobg",
+            "filename": output_filename,
+            "url": f"/assets/overlays/{output_filename}",
+            "message": "Sfondo rimosso con successo!"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore durante la rimozione sfondo: {str(e)}")

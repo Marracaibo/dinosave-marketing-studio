@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Upload, Trash2, Check, Move } from 'lucide-react'
+import { Upload, Trash2, Check, Move, Wand2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { EditSettings } from '@/app/page'
 import { apiUrl } from '@/lib/api'
@@ -86,6 +86,34 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
     }
   }
 
+  const handleRemoveBackground = async (id: string) => {
+    setIsLoading(true)
+    const loadingToast = toast.loading('Rimuovo lo sfondo con AI...')
+    
+    try {
+      const response = await fetch(apiUrl(`/api/assets/overlays/${id}/remove-background`), {
+        method: 'POST'
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.detail || 'Errore durante la rimozione sfondo')
+      }
+      
+      toast.dismiss(loadingToast)
+      toast.success('Sfondo rimosso! Nuovo overlay creato')
+      fetchOverlays()
+      // Seleziona automaticamente il nuovo overlay senza sfondo
+      updateSettings({ overlayId: data.id })
+    } catch (error: any) {
+      toast.dismiss(loadingToast)
+      toast.error(error.message || 'Errore durante la rimozione sfondo')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Overlay Grid */}
@@ -139,9 +167,21 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
             <button
               onClick={() => handleDelete(overlay.id)}
               className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Elimina"
             >
               <Trash2 className="w-3 h-3 text-white" />
             </button>
+            {/* Remove Background Button - solo per immagini */}
+            {overlay.type === 'image' && !overlay.id.endsWith('_nobg') && (
+              <button
+                onClick={() => handleRemoveBackground(overlay.id)}
+                className="absolute -top-2 left-1/2 -translate-x-1/2 bg-purple-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Rimuovi sfondo"
+                disabled={isLoading}
+              >
+                <Wand2 className="w-3 h-3 text-white" />
+              </button>
+            )}
           </div>
         ))}
 
