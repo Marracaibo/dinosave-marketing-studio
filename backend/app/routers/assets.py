@@ -6,13 +6,18 @@ import os
 from PIL import Image
 from io import BytesIO
 import asyncio
+import httpx
 
-# Import rembg per rimozione sfondo AI
+# Rimozione sfondo: remove.bg API (gratuita 50 img/mese) o rembg locale
+REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
+
+# rembg locale (opzionale, richiede molta RAM)
+REMBG_AVAILABLE = False
 try:
     from rembg import remove
     REMBG_AVAILABLE = True
 except ImportError:
-    REMBG_AVAILABLE = False
+    pass
 
 router = APIRouter()
 
@@ -144,26 +149,29 @@ async def delete_audio(audio_id: str):
 
 @router.post("/overlays/{overlay_id:path}/remove-background")
 async def remove_overlay_background(overlay_id: str):
-    """Rimuove lo sfondo da un overlay usando AI (rembg). Supporta immagini e video (estrae primo frame)."""
-    if not REMBG_AVAILABLE:
-        raise HTTPException(status_code=500, detail="rembg non disponibile sul server")
+    """Rimuove lo sfondo da un overlay usando remove.bg API o rembg locale."""
     
-    # Decodifica l'ID (potrebbe contenere spazi o caratteri speciali)
+    # Verifica disponibilità metodi
+    if not REMOVEBG_API_KEY and not REMBG_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="Configura REMOVEBG_API_KEY su Render (gratuita: https://www.remove.bg/api)"
+        )
+    
+    # Decodifica l'ID
     from urllib.parse import unquote
     overlay_id = unquote(overlay_id)
     
-    # Trova l'overlay (immagine o video)
+    # Trova l'overlay
     overlay_path = None
     is_video = False
     
-    # Prima cerca immagini
     for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
         test_path = OVERLAYS_DIR / f"{overlay_id}{ext}"
         if test_path.exists():
             overlay_path = test_path
             break
     
-    # Se non trovato, cerca video
     if not overlay_path:
         for ext in ['.mp4', '.mov', '.webm']:
             test_path = OVERLAYS_DIR / f"{overlay_id}{ext}"
@@ -172,7 +180,6 @@ async def remove_overlay_background(overlay_id: str):
                 is_video = True
                 break
     
-    # Se ancora non trovato, cerca per stem (confronto case-insensitive)
     if not overlay_path:
         for file in OVERLAYS_DIR.iterdir():
             if file.stem.lower() == overlay_id.lower() or file.stem == overlay_id:
@@ -184,31 +191,47 @@ async def remove_overlay_background(overlay_id: str):
         raise HTTPException(status_code=404, detail=f"Overlay '{overlay_id}' non trovato")
     
     try:
-        # Se è un video, estrai il primo frame
+        # Se video, estrai primo frame
         if is_video:
             from moviepy.editor import VideoFileClip
-            import tempfile
-            
-            # Estrai frame dal video
             clip = VideoFileClip(str(overlay_path))
-            frame = clip.get_frame(0)  # Primo frame
+            frame = clip.get_frame(0)
             clip.close()
-            
-            # Converti in immagine PIL e poi in bytes
             img = Image.fromarray(frame)
             buffer = BytesIO()
             img.save(buffer, format='PNG')
             input_data = buffer.getvalue()
         else:
-            # Leggi l'immagine direttamente
             with open(overlay_path, "rb") as f:
                 input_data = f.read()
         
-        # Rimuovi lo sfondo usando rembg (esegui in thread per non bloccare)
-        loop = asyncio.get_event_loop()
-        output_data = await loop.run_in_executor(None, remove, input_data)
+        output_data = None
+        method_used = ""
         
-        # Salva come PNG con trasparenza
+        # Metodo 1: remove.bg API (leggera, gratuita 50 img/mese)
+        if REMOVEBG_API_KEY:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.remove.bg/v1.0/removebg",
+                    headers={"X-Api-Key": REMOVEBG_API_KEY},
+                    files={"image_file": ("image.png", input_data, "image/png")},
+                    data={"size": "auto"},
+                    timeout=60.0
+                )
+                if response.status_code == 200:
+                    output_data = response.content
+                    method_used = "remove.bg"
+                else:
+                    error = response.json().get("errors", [{}])[0].get("title", "Errore")
+                    raise HTTPException(status_code=500, detail=f"remove.bg: {error}")
+        
+        # Metodo 2: rembg locale (fallback)
+        elif REMBG_AVAILABLE:
+            loop = asyncio.get_event_loop()
+            output_data = await loop.run_in_executor(None, remove, input_data)
+            method_used = "rembg"
+        
+        # Salva PNG
         output_filename = f"{overlay_id}_nobg.png"
         output_path = OVERLAYS_DIR / output_filename
         
@@ -220,7 +243,9 @@ async def remove_overlay_background(overlay_id: str):
             "id": f"{overlay_id}_nobg",
             "filename": output_filename,
             "url": f"/assets/overlays/{output_filename}",
-            "message": "Sfondo rimosso con successo!" + (" (estratto da video)" if is_video else "")
+            "message": f"Sfondo rimosso con {method_used}!" + (" (da video)" if is_video else "")
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore durante la rimozione sfondo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
