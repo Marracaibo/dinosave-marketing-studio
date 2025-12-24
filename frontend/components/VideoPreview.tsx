@@ -30,6 +30,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
 
   const currentUrl = showOriginal ? video.previewUrl : outputUrl
@@ -39,6 +40,13 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   useEffect(() => {
     setOverlaySize(settings.overlayScale * 100)
   }, [settings.overlayScale])
+
+  // Sync playback speed with video
+  useEffect(() => {
+    if (videoRef.current && showOriginal) {
+      videoRef.current.playbackRate = settings.playbackSpeed
+    }
+  }, [settings.playbackSpeed, showOriginal])
 
   // Carica l'URL dell'overlay selezionato
   useEffect(() => {
@@ -194,11 +202,15 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
         {currentUrl ? (
           <>
             <video
+              ref={videoRef}
               key={currentUrl}
               src={currentUrl}
               controls
               className="w-full h-full object-contain"
               playsInline
+              style={showOriginal ? {
+                filter: `brightness(${1 + settings.brightness / 100}) contrast(${1 + settings.contrast / 100}) saturate(${1 + settings.saturation / 50})`,
+              } : undefined}
             />
             {/* Live Overlay Preview - Draggable & Resizable */}
             {showOriginal && overlayUrl && (
