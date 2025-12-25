@@ -79,6 +79,21 @@ def get_text_position_filter(position: str):
     }
     return positions.get(position, positions["top-center"])
 
+def get_video_dimensions(video_path: str) -> tuple:
+    """Ottiene le dimensioni del video usando ffprobe"""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "csv=p=0", video_path],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split(',')
+            return int(parts[0]), int(parts[1])
+    except Exception as e:
+        print(f"[WARN] Could not get video dimensions: {e}")
+    return 1080, 1920  # Default 9:16 portrait
+
 async def run_ffmpeg(cmd: List[str]):
     """Esegue FFmpeg in modo asincrono"""
     # Log comando per debug
@@ -116,6 +131,10 @@ async def process_video(request: ProcessRequest):
         raise HTTPException(status_code=404, detail="Video sorgente non trovato")
     
     source_path = source_files[0]
+    
+    # Ottieni dimensioni video per calcolare scala overlay
+    video_width, video_height = get_video_dimensions(str(source_path))
+    print(f"[DEBUG] Video dimensions: {video_width}x{video_height}")
     
     # Costruisci il comando FFmpeg
     cmd = [FFMPEG_PATH, "-y"]
@@ -182,23 +201,28 @@ async def process_video(request: ProcessRequest):
             
             print(f"[DEBUG] Overlay: {overlay_path.name}, ext: {overlay_ext}, has_alpha: {has_native_alpha}, remove_green: {request.remove_green_screen}")
             
+            # Calcola dimensione overlay in base alla LARGHEZZA del video principale
+            # overlay_scale è la % della larghezza del video (come nella preview)
+            overlay_target_width = int(video_width * request.overlay_scale)
+            print(f"[DEBUG] Overlay target width: {overlay_target_width}px (scale: {request.overlay_scale})")
+            
             # Scala overlay con gestione trasparenza
             if request.remove_green_screen:
                 # Rimuovi sfondo verde con chromakey
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1,format=rgba[chroma]"
                 filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+                scale_filter = f"[chroma]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
             elif request.remove_black_screen:
                 # Rimuovi sfondo nero con colorkey (per WebM senza vero alpha)
                 colorkey_filter = f"[1:v]colorkey=0x000000:0.3:0.2,format=rgba[colorkeyed]"
                 filter_complex.append(colorkey_filter)
-                scale_filter = f"[colorkeyed]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+                scale_filter = f"[colorkeyed]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
             elif has_native_alpha:
                 # WebM/MOV/PNG con trasparenza nativa - FORZA preservazione alpha
-                scale_filter = f"[1:v]format=rgba,scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+                scale_filter = f"[1:v]format=rgba,scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
             else:
                 # Nessun alpha, nessun chromakey
-                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+                scale_filter = f"[1:v]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
             filter_complex.append(scale_filter)
             
             # Posizione overlay
