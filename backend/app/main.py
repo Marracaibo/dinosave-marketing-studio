@@ -15,10 +15,16 @@ app = FastAPI(
 # CORS per il frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permetti tutte le origini in produzione
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://dinosave-marketing-studio.vercel.app",
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Crea cartelle necessarie
