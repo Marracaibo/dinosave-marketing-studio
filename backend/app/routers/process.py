@@ -22,15 +22,27 @@ TEMP_DIR = Path("temp")
 OUTPUT_DIR = Path("output")
 ASSETS_DIR = Path("assets")
 
+class OverlayItem(BaseModel):
+    """Singolo overlay da applicare al video"""
+    id: str
+    x: float = 70  # Percentuale 0-100 dalla sinistra
+    y: float = 70  # Percentuale 0-100 dall'alto
+    scale: float = 0.25  # % della larghezza video
+    remove_green_screen: bool = True
+    remove_black_screen: bool = False
+
 class ProcessRequest(BaseModel):
     video_id: str
+    # Supporto overlay multipli
+    overlays: Optional[List[OverlayItem]] = None
+    # Legacy single overlay (retrocompatibilità)
     overlay_id: Optional[str] = None
-    overlay_position: str = "bottom-right"  # fallback se X/Y non forniti
-    overlay_x: Optional[float] = None  # Percentuale 0-100 dalla sinistra
-    overlay_y: Optional[float] = None  # Percentuale 0-100 dall'alto
-    overlay_scale: float = 0.25  # 25% della dimensione video
-    remove_green_screen: bool = True  # Rimuovi sfondo verde dall'overlay
-    remove_black_screen: bool = False  # Rimuovi sfondo nero dall'overlay (per WebM senza alpha)
+    overlay_position: str = "bottom-right"
+    overlay_x: Optional[float] = None
+    overlay_y: Optional[float] = None
+    overlay_scale: float = 0.25
+    remove_green_screen: bool = True
+    remove_black_screen: bool = False
     audio_id: Optional[str] = None
     remove_original_audio: bool = False
     text_overlay: Optional[str] = None
@@ -174,66 +186,71 @@ async def process_video(request: ProcessRequest):
         filter_complex.append(f"[0:v]{combined}[vbase]")
         current_stream = "[vbase]"
     
-    # Overlay video (dino)
-    if request.overlay_id:
-        # L'overlay_id potrebbe essere il filename completo o solo lo stem
-        overlay_path = ASSETS_DIR / "overlays" / request.overlay_id
+    # Prepara lista overlay (supporta sia array che singolo per retrocompatibilità)
+    overlay_list = []
+    if request.overlays:
+        overlay_list = request.overlays
+    elif request.overlay_id:
+        # Legacy: converti singolo overlay in lista
+        overlay_list = [OverlayItem(
+            id=request.overlay_id,
+            x=request.overlay_x if request.overlay_x is not None else 70,
+            y=request.overlay_y if request.overlay_y is not None else 70,
+            scale=request.overlay_scale,
+            remove_green_screen=request.remove_green_screen,
+            remove_black_screen=request.remove_black_screen
+        )]
+    
+    # Processa ogni overlay
+    overlay_input_idx = 1  # Indice input FFmpeg (0 è il video principale)
+    for idx, overlay_item in enumerate(overlay_list):
+        # Trova il file overlay
+        overlay_path = ASSETS_DIR / "overlays" / overlay_item.id
         if not overlay_path.exists():
-            # Prova con estensioni comuni
             for ext in ['.mov', '.mp4', '.webm', '.gif', '.png']:
-                test_path = ASSETS_DIR / "overlays" / f"{request.overlay_id}{ext}"
+                test_path = ASSETS_DIR / "overlays" / f"{overlay_item.id}{ext}"
                 if test_path.exists():
                     overlay_path = test_path
                     break
-            # Se ancora non trovato, cerca per stem (nome senza estensione)
             if not overlay_path.exists():
                 for file in (ASSETS_DIR / "overlays").iterdir():
-                    if file.stem == request.overlay_id:
+                    if file.stem == overlay_item.id:
                         overlay_path = file
                         break
         
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Rileva se l'overlay supporta alpha nativamente
             overlay_ext = overlay_path.suffix.lower()
             has_native_alpha = overlay_ext in ['.webm', '.mov', '.png', '.gif']
             
-            print(f"[DEBUG] Overlay: {overlay_path.name}, ext: {overlay_ext}, has_alpha: {has_native_alpha}, remove_green: {request.remove_green_screen}")
+            print(f"[DEBUG] Overlay {idx}: {overlay_path.name}, pos: ({overlay_item.x}, {overlay_item.y}), scale: {overlay_item.scale}")
             
-            # Calcola dimensione overlay in base alla LARGHEZZA del video principale
-            # overlay_scale è la % della larghezza del video (come nella preview)
-            overlay_target_width = int(video_width * request.overlay_scale)
-            print(f"[DEBUG] Overlay target width: {overlay_target_width}px (scale: {request.overlay_scale})")
+            overlay_target_width = int(video_width * overlay_item.scale)
+            input_ref = f"[{overlay_input_idx}:v]"
+            scaled_name = f"overlay_scaled_{idx}"
             
             # Scala overlay con gestione trasparenza
-            if request.remove_green_screen:
-                # Rimuovi sfondo verde con chromakey
-                chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1,format=rgba[chroma]"
-                filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
-            elif request.remove_black_screen:
-                # Rimuovi sfondo nero con colorkey (per WebM senza vero alpha)
-                colorkey_filter = f"[1:v]colorkey=0x000000:0.3:0.2,format=rgba[colorkeyed]"
-                filter_complex.append(colorkey_filter)
-                scale_filter = f"[colorkeyed]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
+            if overlay_item.remove_green_screen:
+                chroma_name = f"chroma_{idx}"
+                filter_complex.append(f"{input_ref}chromakey=0x00FF00:0.3:0.1,format=rgba[{chroma_name}]")
+                filter_complex.append(f"[{chroma_name}]scale={overlay_target_width}:-1:flags=lanczos[{scaled_name}]")
+            elif overlay_item.remove_black_screen:
+                colorkey_name = f"colorkey_{idx}"
+                filter_complex.append(f"{input_ref}colorkey=0x000000:0.3:0.2,format=rgba[{colorkey_name}]")
+                filter_complex.append(f"[{colorkey_name}]scale={overlay_target_width}:-1:flags=lanczos[{scaled_name}]")
             elif has_native_alpha:
-                # WebM/MOV/PNG con trasparenza nativa - FORZA preservazione alpha
-                scale_filter = f"[1:v]format=rgba,scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
+                filter_complex.append(f"{input_ref}format=rgba,scale={overlay_target_width}:-1:flags=lanczos[{scaled_name}]")
             else:
-                # Nessun alpha, nessun chromakey
-                scale_filter = f"[1:v]scale={overlay_target_width}:-1:flags=lanczos[overlay_scaled]"
-            filter_complex.append(scale_filter)
+                filter_complex.append(f"{input_ref}scale={overlay_target_width}:-1:flags=lanczos[{scaled_name}]")
             
             # Posizione overlay
-            if request.overlay_x is not None and request.overlay_y is not None:
-                pos = get_position_from_percent(request.overlay_x, request.overlay_y)
-            else:
-                pos = get_position_filter(request.overlay_position, "main_w", "main_h", "overlay_w", "overlay_h")
-            # Overlay - format=auto per gestire correttamente l'alpha
-            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:eof_action=repeat:format=auto[overlaid]"
+            pos = get_position_from_percent(overlay_item.x, overlay_item.y)
+            output_name = f"overlaid_{idx}"
+            overlay_filter = f"{current_stream}[{scaled_name}]overlay={pos}:eof_action=repeat:format=auto[{output_name}]"
             filter_complex.append(overlay_filter)
-            current_stream = "[overlaid]"
+            current_stream = f"[{output_name}]"
+            overlay_input_idx += 1
     
     # Testo overlay
     if request.text_overlay:

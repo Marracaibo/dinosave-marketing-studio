@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Upload, Trash2, Check, Move, Wand2 } from 'lucide-react'
+import { Upload, Trash2, Check, Move, Wand2, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { EditSettings } from '@/app/page'
+import type { EditSettings, OverlayItem } from '@/app/page'
 import { apiUrl } from '@/lib/api'
 
 interface Overlay {
@@ -204,34 +204,33 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
         </label>
       </div>
 
-      {/* Position & Scale Controls */}
+      {/* Aggiungi Overlay al Video */}
       {settings.overlayId && (
-        <div className="space-y-3 pt-3 border-t border-white/10">
-          {/* Position */}
-          <div>
-            <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-              <Move className="w-4 h-4" />
-              Posizione
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {POSITIONS.map((pos) => (
-                <button
-                  key={pos.value}
-                  onClick={() => updateSettings({ overlayPosition: pos.value })}
-                  className={`py-2 px-2 rounded-lg text-xs font-medium transition-all min-h-[44px] ${
-                    settings.overlayPosition === pos.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20 active:bg-white/30'
-                  }`}
-                >
-                  {pos.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
+        <div className="pt-3 border-t border-white/10">
+          <button
+            onClick={() => {
+              const newOverlay: OverlayItem = {
+                id: settings.overlayId!,
+                x: settings.overlayX,
+                y: settings.overlayY,
+                scale: settings.overlayScale,
+                removeGreenScreen: settings.removeGreenScreen,
+                removeBlackScreen: settings.removeBlackScreen,
+              }
+              updateSettings({ 
+                overlays: [...settings.overlays, newOverlay],
+                overlayId: null // Reset selezione
+              })
+              toast.success('Overlay aggiunto! 🦖')
+            }}
+            className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Aggiungi al Video
+          </button>
+          
           {/* Scale */}
-          <div>
+          <div className="mt-3">
             <label className="flex items-center justify-between text-sm text-gray-400 mb-2">
               <span>Dimensione</span>
               <span className="text-primary-400">{Math.round(settings.overlayScale * 100)}%</span>
@@ -239,7 +238,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
             <input
               type="range"
               min="0.1"
-              max="0.5"
+              max="0.6"
               step="0.05"
               value={settings.overlayScale}
               onChange={(e) => updateSettings({ overlayScale: parseFloat(e.target.value) })}
@@ -248,7 +247,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
           </div>
 
           {/* Remove Green Screen */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-3">
             <label className="text-sm text-gray-400">Rimuovi sfondo verde</label>
             <button
               onClick={() => updateSettings({ removeGreenScreen: !settings.removeGreenScreen, removeBlackScreen: false })}
@@ -264,8 +263,8 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
             </button>
           </div>
 
-          {/* Remove Black Screen - for WebM without true alpha */}
-          <div className="flex items-center justify-between">
+          {/* Remove Black Screen */}
+          <div className="flex items-center justify-between mt-2">
             <label className="text-sm text-gray-400">Rimuovi sfondo nero</label>
             <button
               onClick={() => updateSettings({ removeBlackScreen: !settings.removeBlackScreen, removeGreenScreen: false })}
@@ -280,6 +279,56 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
               />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Lista Overlay Aggiunti */}
+      {settings.overlays.length > 0 && (
+        <div className="pt-3 border-t border-white/10">
+          <label className="text-sm text-gray-400 mb-2 block">
+            Overlay nel video ({settings.overlays.length})
+          </label>
+          <div className="space-y-2">
+            {settings.overlays.map((item, idx) => {
+              const overlay = overlays.find(o => o.id === item.id)
+              return (
+                <div key={idx} className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                  <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0">
+                    {overlay?.type === 'video' ? (
+                      <video src={overlay.url} className="w-full h-full object-cover" muted />
+                    ) : overlay ? (
+                      <img src={overlay.url} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gray-700 flex items-center justify-center text-xs">?</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-white truncate">{overlay?.filename || item.id}</p>
+                    <p className="text-xs text-gray-500">
+                      Pos: {Math.round(item.x)}%, {Math.round(item.y)}% | Scala: {Math.round(item.scale * 100)}%
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newOverlays = settings.overlays.filter((_, i) => i !== idx)
+                      updateSettings({ overlays: newOverlays })
+                    }}
+                    className="p-1 hover:bg-red-500/20 rounded transition-colors"
+                  >
+                    <X className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          {settings.overlays.length > 0 && (
+            <button
+              onClick={() => updateSettings({ overlays: [] })}
+              className="mt-2 w-full py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+            >
+              Rimuovi tutti
+            </button>
+          )}
         </div>
       )}
     </div>

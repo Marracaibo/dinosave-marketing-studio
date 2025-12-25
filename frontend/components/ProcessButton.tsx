@@ -39,7 +39,9 @@ export default function ProcessButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           video_id: video.videoId,
-          overlay_id: settings.overlayId,
+          // Overlay multipli (priorità) o singolo (legacy)
+          overlays: settings.overlays.length > 0 ? settings.overlays : null,
+          overlay_id: settings.overlays.length === 0 ? settings.overlayId : null,
           overlay_position: settings.overlayPosition,
           overlay_x: settings.overlayX,
           overlay_y: settings.overlayY,

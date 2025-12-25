@@ -18,11 +18,23 @@ export interface VideoState {
   duration: number | null
 }
 
+export interface OverlayItem {
+  id: string
+  x: number  // Percentuale 0-100
+  y: number  // Percentuale 0-100
+  scale: number
+  removeGreenScreen: boolean
+  removeBlackScreen: boolean
+}
+
 export interface EditSettings {
+  // Overlay multipli
+  overlays: OverlayItem[]
+  // Legacy (per retrocompatibilità)
   overlayId: string | null
   overlayPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'
-  overlayX: number  // Percentuale 0-100
-  overlayY: number  // Percentuale 0-100
+  overlayX: number
+  overlayY: number
   overlayScale: number
   removeGreenScreen: boolean
   removeBlackScreen: boolean
@@ -50,9 +62,10 @@ export default function Home() {
   })
 
   const [settings, setSettings] = useState<EditSettings>({
+    overlays: [],
     overlayId: null,
     overlayPosition: 'bottom-right',
-    overlayX: 70,  // Default bottom-right
+    overlayX: 70,
     overlayY: 70,
     overlayScale: 0.25,
     removeGreenScreen: true,

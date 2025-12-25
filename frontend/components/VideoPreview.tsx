@@ -23,6 +23,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [showOriginal, setShowOriginal] = useState(true)
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null)
   const [overlayType, setOverlayType] = useState<string>('video')
+  const [allOverlays, setAllOverlays] = useState<OverlayInfo[]>([])
   
   // Drag & resize state - inizializza dalle settings
   const [overlayPos, setOverlayPos] = useState({ x: settings.overlayX ?? 70, y: settings.overlayY ?? 70 })
@@ -47,6 +48,16 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
       videoRef.current.playbackRate = settings.playbackSpeed
     }
   }, [settings.playbackSpeed, showOriginal])
+
+  // Carica tutti gli overlay disponibili
+  useEffect(() => {
+    fetch(apiUrl('/api/assets/overlays'))
+      .then(res => res.json())
+      .then(data => {
+        setAllOverlays(data.overlays || [])
+      })
+      .catch(() => setAllOverlays([]))
+  }, [settings.overlays.length])
 
   // Carica l'URL dell'overlay selezionato
   useEffect(() => {
@@ -261,6 +272,32 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                 </div>
               </div>
             )}
+            {/* Multi-Overlay Preview (overlay già aggiunti) */}
+            {showOriginal && settings.overlays.map((item, idx) => {
+              const overlayInfo = allOverlays.find((o: any) => o.id === item.id)
+              if (!overlayInfo) return null
+              return (
+                <div 
+                  key={idx}
+                  className="absolute pointer-events-none"
+                  style={{ 
+                    left: `${item.x}%`,
+                    top: `${item.y}%`,
+                    width: `${item.scale * 100}%`,
+                    maxWidth: '60%'
+                  }}
+                >
+                  {overlayInfo.type === 'video' ? (
+                    <video src={overlayInfo.url} autoPlay loop muted playsInline className="w-full h-auto opacity-70" />
+                  ) : (
+                    <img src={overlayInfo.url} alt="Overlay" className="w-full h-auto opacity-70" />
+                  )}
+                  <div className="absolute top-0 left-0 bg-black/50 text-white text-xs px-1 rounded">
+                    #{idx + 1}
+                  </div>
+                </div>
+              )
+            })}
             {/* Text Overlay Preview */}
             {showOriginal && settings.textOverlay && (
               <div 
