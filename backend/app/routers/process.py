@@ -175,15 +175,24 @@ async def process_video(request: ProcessRequest):
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Scala overlay
-            if request.remove_green_screen:
-                # Chromakey per video con sfondo verde
-                chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
+            # Rileva se l'overlay supporta alpha nativamente
+            overlay_ext = overlay_path.suffix.lower()
+            has_native_alpha = overlay_ext in ['.webm', '.mov', '.png', '.gif']
+            
+            print(f"[DEBUG] Overlay: {overlay_path.name}, ext: {overlay_ext}, has_alpha: {has_native_alpha}, remove_green: {request.remove_green_screen}")
+            
+            # Scala overlay con gestione trasparenza
+            if request.remove_green_screen and not has_native_alpha:
+                # MP4/altri formati senza alpha: usa chromakey per sfondo verde
+                chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1,format=rgba[chroma]"
                 filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+            elif has_native_alpha:
+                # WebM/MOV/PNG con trasparenza nativa - FORZA preservazione alpha
+                scale_filter = f"[1:v]format=rgba,scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
             else:
-                # WebM con trasparenza nativa - scala mantenendo aspect ratio
-                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+                # Nessun alpha, nessun chromakey
+                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
             filter_complex.append(scale_filter)
             
             # Posizione overlay
@@ -191,7 +200,7 @@ async def process_video(request: ProcessRequest):
                 pos = get_position_from_percent(request.overlay_x, request.overlay_y)
             else:
                 pos = get_position_filter(request.overlay_position, "main_w", "main_h", "overlay_w", "overlay_h")
-            # Overlay con eof_action per gestire video di durate diverse
+            # Overlay - format=auto per gestire correttamente l'alpha
             overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:eof_action=repeat:format=auto[overlaid]"
             filter_complex.append(overlay_filter)
             current_stream = "[overlaid]"
