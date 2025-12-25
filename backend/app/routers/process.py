@@ -30,6 +30,7 @@ class ProcessRequest(BaseModel):
     overlay_y: Optional[float] = None  # Percentuale 0-100 dall'alto
     overlay_scale: float = 0.25  # 25% della dimensione video
     remove_green_screen: bool = True  # Rimuovi sfondo verde dall'overlay
+    remove_black_screen: bool = False  # Rimuovi sfondo nero dall'overlay (per WebM senza alpha)
     audio_id: Optional[str] = None
     remove_original_audio: bool = False
     text_overlay: Optional[str] = None
@@ -182,11 +183,16 @@ async def process_video(request: ProcessRequest):
             print(f"[DEBUG] Overlay: {overlay_path.name}, ext: {overlay_ext}, has_alpha: {has_native_alpha}, remove_green: {request.remove_green_screen}")
             
             # Scala overlay con gestione trasparenza
-            if request.remove_green_screen and not has_native_alpha:
-                # MP4/altri formati senza alpha: usa chromakey per sfondo verde
+            if request.remove_green_screen:
+                # Rimuovi sfondo verde con chromakey
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1,format=rgba[chroma]"
                 filter_complex.append(chroma_filter)
                 scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+            elif request.remove_black_screen:
+                # Rimuovi sfondo nero con colorkey (per WebM senza vero alpha)
+                colorkey_filter = f"[1:v]colorkey=0x000000:0.3:0.2,format=rgba[colorkeyed]"
+                filter_complex.append(colorkey_filter)
+                scale_filter = f"[colorkeyed]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
             elif has_native_alpha:
                 # WebM/MOV/PNG con trasparenza nativa - FORZA preservazione alpha
                 scale_filter = f"[1:v]format=rgba,scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"

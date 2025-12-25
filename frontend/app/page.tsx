@@ -25,6 +25,7 @@ export interface EditSettings {
   overlayY: number  // Percentuale 0-100
   overlayScale: number
   removeGreenScreen: boolean
+  removeBlackScreen: boolean
   audioId: string | null
   removeOriginalAudio: boolean
   textOverlay: string
@@ -55,6 +56,7 @@ export default function Home() {
     overlayY: 70,
     overlayScale: 0.25,
     removeGreenScreen: true,
+    removeBlackScreen: false,
     audioId: null,
     removeOriginalAudio: false,
     textOverlay: '',

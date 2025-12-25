@@ -251,7 +251,7 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
           <div className="flex items-center justify-between">
             <label className="text-sm text-gray-400">Rimuovi sfondo verde</label>
             <button
-              onClick={() => updateSettings({ removeGreenScreen: !settings.removeGreenScreen })}
+              onClick={() => updateSettings({ removeGreenScreen: !settings.removeGreenScreen, removeBlackScreen: false })}
               className={`relative w-12 h-6 rounded-full transition-colors ${
                 settings.removeGreenScreen ? 'bg-green-500' : 'bg-gray-600'
               }`}
@@ -259,6 +259,23 @@ export default function OverlaySelector({ settings, updateSettings }: OverlaySel
               <span
                 className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
                   settings.removeGreenScreen ? 'left-7' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Remove Black Screen - for WebM without true alpha */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-400">Rimuovi sfondo nero</label>
+            <button
+              onClick={() => updateSettings({ removeBlackScreen: !settings.removeBlackScreen, removeGreenScreen: false })}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                settings.removeBlackScreen ? 'bg-gray-800 ring-2 ring-white' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  settings.removeBlackScreen ? 'left-7' : 'left-1'
                 }`}
               />
             </button>
