@@ -30,10 +30,16 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [overlaySize, setOverlaySize] = useState(settings.overlayScale * 100)
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
-  const [draggingOverlayIdx, setDraggingOverlayIdx] = useState<number | null>(null) // Per overlay già aggiunti
+  
+  // State per overlay già aggiunti - INDIPENDENTI
+  const [activeOverlayIdx, setActiveOverlayIdx] = useState<number | null>(null)
+  const [activeOverlayAction, setActiveOverlayAction] = useState<'drag' | 'resize' | null>(null)
+  const [tempOverlayPos, setTempOverlayPos] = useState<{x: number, y: number} | null>(null)
+  const [tempOverlayScale, setTempOverlayScale] = useState<number | null>(null)
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, scale: 0 })
 
   const currentUrl = showOriginal ? video.previewUrl : outputUrl
   const hasOutput = !!outputUrl
@@ -95,31 +101,55 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
       x: clientX,
       y: clientY,
       posX: overlayPos.x,
-      posY: overlayPos.y
+      posY: overlayPos.y,
+      scale: overlaySize
     }
-  }, [overlayPos])
+  }, [overlayPos, overlaySize])
 
   // Handle drag per overlay già aggiunti
   const handleAddedOverlayDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, idx: number) => {
     e.preventDefault()
     e.stopPropagation()
-    setDraggingOverlayIdx(idx)
+    setActiveOverlayIdx(idx)
+    setActiveOverlayAction('drag')
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
     const item = settings.overlays[idx]
     
+    setTempOverlayPos({ x: item.x, y: item.y })
     dragStartRef.current = {
       x: clientX,
       y: clientY,
       posX: item.x,
-      posY: item.y
+      posY: item.y,
+      scale: item.scale
+    }
+  }, [settings.overlays])
+
+  // Handle resize per overlay già aggiunti
+  const handleAddedOverlayResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, idx: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActiveOverlayIdx(idx)
+    setActiveOverlayAction('resize')
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const item = settings.overlays[idx]
+    
+    setTempOverlayScale(item.scale)
+    dragStartRef.current = {
+      x: clientX,
+      y: 0,
+      posX: item.x,
+      posY: item.y,
+      scale: item.scale
     }
   }, [settings.overlays])
 
   // Handle drag move
   useEffect(() => {
-    if (!isDragging && !isResizing && draggingOverlayIdx === null) return
+    if (!isDragging && !isResizing && activeOverlayIdx === null) return
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!containerRef.current) return
@@ -128,6 +158,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
       const rect = containerRef.current.getBoundingClientRect()
       
+      // Drag overlay in selezione (non ancora aggiunto)
       if (isDragging) {
         const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
         const deltaY = ((clientY - dragStartRef.current.y) / rect.height) * 100
@@ -136,33 +167,34 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
         const newY = Math.max(0, Math.min(85, dragStartRef.current.posY + deltaY))
         
         setOverlayPos({ x: newX, y: newY })
-        
-        // Sincronizza con le settings per passare al backend
         if (updateSettings) {
           updateSettings({ overlayX: newX, overlayY: newY })
         }
       }
       
-      // Drag overlay già aggiunto
-      if (draggingOverlayIdx !== null && updateSettings) {
+      // Drag overlay già aggiunto - usa state locale per fluidità
+      if (activeOverlayIdx !== null && activeOverlayAction === 'drag') {
         const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
         const deltaY = ((clientY - dragStartRef.current.y) / rect.height) * 100
         
-        const item = settings.overlays[draggingOverlayIdx]
-        const newX = Math.max(0, Math.min(100 - (item.scale * 100), dragStartRef.current.posX + deltaX))
+        const newX = Math.max(0, Math.min(90, dragStartRef.current.posX + deltaX))
         const newY = Math.max(0, Math.min(85, dragStartRef.current.posY + deltaY))
         
-        const newOverlays = [...settings.overlays]
-        newOverlays[draggingOverlayIdx] = { ...item, x: newX, y: newY }
-        updateSettings({ overlays: newOverlays })
+        setTempOverlayPos({ x: newX, y: newY })
       }
       
+      // Resize overlay già aggiunto
+      if (activeOverlayIdx !== null && activeOverlayAction === 'resize') {
+        const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
+        const newScale = Math.max(0.1, Math.min(0.6, dragStartRef.current.scale + deltaX / 100))
+        setTempOverlayScale(newScale)
+      }
+      
+      // Resize overlay in selezione
       if (isResizing) {
         const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
-        const newSize = Math.max(10, Math.min(60, dragStartRef.current.posX + deltaX))
+        const newSize = Math.max(10, Math.min(60, dragStartRef.current.scale + deltaX))
         setOverlaySize(newSize)
-        
-        // Aggiorna le settings
         if (updateSettings) {
           updateSettings({ overlayScale: newSize / 100 })
         }
@@ -170,9 +202,27 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
     }
 
     const handleEnd = () => {
+      // Salva le modifiche agli overlay aggiunti
+      if (activeOverlayIdx !== null && updateSettings) {
+        const newOverlays = [...settings.overlays]
+        const item = newOverlays[activeOverlayIdx]
+        
+        if (activeOverlayAction === 'drag' && tempOverlayPos) {
+          newOverlays[activeOverlayIdx] = { ...item, x: tempOverlayPos.x, y: tempOverlayPos.y }
+        }
+        if (activeOverlayAction === 'resize' && tempOverlayScale !== null) {
+          newOverlays[activeOverlayIdx] = { ...item, scale: tempOverlayScale }
+        }
+        
+        updateSettings({ overlays: newOverlays })
+      }
+      
       setIsDragging(false)
       setIsResizing(false)
-      setDraggingOverlayIdx(null)
+      setActiveOverlayIdx(null)
+      setActiveOverlayAction(null)
+      setTempOverlayPos(null)
+      setTempOverlayScale(null)
     }
 
     window.addEventListener('mousemove', handleMove)
@@ -200,7 +250,8 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
       x: clientX,
       y: 0,
       posX: overlaySize,
-      posY: 0
+      posY: 0,
+      scale: overlaySize
     }
   }, [overlaySize])
 
@@ -306,18 +357,25 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                 </div>
               </div>
             )}
-            {/* Multi-Overlay Preview (overlay già aggiunti - TRASCINABILI) */}
+            {/* Multi-Overlay Preview (overlay già aggiunti - INDIPENDENTI) */}
             {showOriginal && settings.overlays.map((item, idx) => {
               const overlayInfo = allOverlays.find((o: any) => o.id === item.id)
               if (!overlayInfo) return null
+              
+              // Usa posizione/scala temporanea durante drag/resize per fluidità
+              const isActive = activeOverlayIdx === idx
+              const displayX = isActive && tempOverlayPos ? tempOverlayPos.x : item.x
+              const displayY = isActive && tempOverlayPos ? tempOverlayPos.y : item.y
+              const displayScale = isActive && tempOverlayScale !== null ? tempOverlayScale : item.scale
+              
               return (
                 <div 
                   key={idx}
-                  className={`absolute cursor-move select-none ${draggingOverlayIdx === idx ? 'opacity-90 z-20' : 'z-10'}`}
+                  className={`absolute cursor-move select-none ${isActive ? 'z-30 ring-2 ring-primary-400' : 'z-10'}`}
                   style={{ 
-                    left: `${item.x}%`,
-                    top: `${item.y}%`,
-                    width: `${item.scale * 100}%`,
+                    left: `${displayX}%`,
+                    top: `${displayY}%`,
+                    width: `${displayScale * 100}%`,
                     maxWidth: '60%'
                   }}
                   onMouseDown={(e) => handleAddedOverlayDragStart(e, idx)}
@@ -328,9 +386,18 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                   ) : (
                     <img src={overlayInfo.url} alt="Overlay" className="w-full h-auto pointer-events-none" />
                   )}
+                  {/* Badge numero */}
                   <div className="absolute top-0 left-0 bg-primary-500/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
                     <Move className="w-3 h-3" />
                     #{idx + 1}
+                  </div>
+                  {/* Resize handle */}
+                  <div
+                    className="absolute bottom-0 right-0 w-6 h-6 bg-primary-500/80 rounded-tl-lg cursor-se-resize flex items-center justify-center hover:bg-primary-400 transition-colors"
+                    onMouseDown={(e) => handleAddedOverlayResizeStart(e, idx)}
+                    onTouchStart={(e) => handleAddedOverlayResizeStart(e, idx)}
+                  >
+                    <Maximize2 className="w-3 h-3 text-white" />
                   </div>
                 </div>
               )
