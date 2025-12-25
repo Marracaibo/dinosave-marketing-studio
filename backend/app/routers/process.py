@@ -157,10 +157,10 @@ async def process_video(request: ProcessRequest):
     
     cmd.extend(["-i", str(source_path)])
     
-    # Trim: duration
+    # Calcola durata trim (applicata alla fine)
+    trim_duration = None
     if request.trim_end and request.trim_end > request.trim_start:
-        duration = request.trim_end - request.trim_start
-        cmd.extend(["-t", str(duration)])
+        trim_duration = request.trim_end - request.trim_start
     
     filter_complex = []
     current_stream = "[0:v]"
@@ -307,19 +307,26 @@ async def process_video(request: ProcessRequest):
             cmd.extend(["-af", audio_filter])
     
     # Output settings - ottimizzato per bassa memoria (Render free tier 512MB)
+    # Output settings
     cmd.extend([
-        "-threads", "1",  # Limita thread per ridurre RAM
+        "-threads", "1",
         "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",  # IMPORTANTE: formato compatibile con tutti i dispositivi
-        "-preset", "ultrafast",  # Più veloce, meno RAM
-        "-crf", "28",  # Qualità leggermente inferiore ma meno RAM
-        "-maxrate", "2M",  # Limita bitrate
-        "-bufsize", "1M",  # Buffer piccolo
-        "-movflags", "+faststart",  # Ottimizza per streaming web
+        "-pix_fmt", "yuv420p",
+        "-preset", "ultrafast",
+        "-crf", "28",
+        "-maxrate", "2M",
+        "-bufsize", "1M",
+        "-movflags", "+faststart",
         "-c:a", "aac",
-        "-b:a", "96k",  # Audio più leggero
-        str(output_path)
+        "-b:a", "96k",
     ])
+    
+    # Trim duration - DEVE essere prima dell'output file
+    if trim_duration:
+        cmd.extend(["-t", str(trim_duration)])
+        print(f"[DEBUG] Trim duration: {trim_duration}s")
+    
+    cmd.append(str(output_path))
     
     try:
         await run_ffmpeg(cmd)
