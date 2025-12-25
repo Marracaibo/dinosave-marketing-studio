@@ -49,7 +49,7 @@ class ProcessResponse(BaseModel):
     output_url: str
     message: str
 
-def get_position_filter(position: str, video_w: str, video_h: str, overlay_w: str, overlay_h: str, margin: int = 20):
+def get_position_filter(position: str, video_w: str = "main_w", video_h: str = "main_h", overlay_w: str = "overlay_w", overlay_h: str = "overlay_h", margin: int = 20):
     """Calcola la posizione FFmpeg per l'overlay (fallback)"""
     positions = {
         "top-left": f"{margin}:{margin}",
@@ -60,11 +60,11 @@ def get_position_filter(position: str, video_w: str, video_h: str, overlay_w: st
     }
     return positions.get(position, positions["bottom-right"])
 
-def get_position_from_percent(x_percent: float, y_percent: float, video_w: str, video_h: str):
+def get_position_from_percent(x_percent: float, y_percent: float):
     """Calcola la posizione FFmpeg da coordinate percentuali (0-100)"""
-    # x_percent e y_percent sono 0-100, converti in posizione FFmpeg
-    x = f"({video_w}*{x_percent/100})"
-    y = f"({video_h}*{y_percent/100})"
+    # Usa main_w e main_h per riferirsi al video principale nel filtro overlay
+    x = f"(main_w*{x_percent/100})"
+    y = f"(main_h*{y_percent/100})"
     return f"{x}:{y}"
 
 def get_text_position_filter(position: str):
@@ -80,6 +80,9 @@ def get_text_position_filter(position: str):
 
 async def run_ffmpeg(cmd: List[str]):
     """Esegue FFmpeg in modo asincrono"""
+    # Log comando per debug
+    print(f"[FFmpeg CMD] {' '.join(cmd)}")
+    
     def _run():
         result = subprocess.run(
             cmd,
@@ -92,6 +95,7 @@ async def run_ffmpeg(cmd: List[str]):
     result = await loop.run_in_executor(None, _run)
     
     if result.returncode != 0:
+        print(f"[FFmpeg ERROR] {result.stderr}")
         raise Exception(f"FFmpeg error: {result.stderr}")
     
     return result
@@ -171,24 +175,24 @@ async def process_video(request: ProcessRequest):
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Scala overlay - semplice, FFmpeg gestisce automaticamente l'alpha di WebM
+            # Scala overlay
             if request.remove_green_screen:
                 # Chromakey per video con sfondo verde
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
                 filter_complex.append(chroma_filter)
                 scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             else:
-                # WebM con trasparenza nativa - solo scala, FFmpeg preserva l'alpha automaticamente
+                # WebM con trasparenza nativa - scala mantenendo aspect ratio
                 scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             filter_complex.append(scale_filter)
             
             # Posizione overlay
             if request.overlay_x is not None and request.overlay_y is not None:
-                pos = get_position_from_percent(request.overlay_x, request.overlay_y, "W", "H")
+                pos = get_position_from_percent(request.overlay_x, request.overlay_y)
             else:
-                pos = get_position_filter(request.overlay_position, "W", "H", "w", "h")
-            # Overlay semplice - FFmpeg usa automaticamente l'alpha channel se presente
-            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1[overlaid]"
+                pos = get_position_filter(request.overlay_position, "main_w", "main_h", "overlay_w", "overlay_h")
+            # Overlay con eof_action per gestire video di durate diverse
+            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:eof_action=repeat:format=auto[overlaid]"
             filter_complex.append(overlay_filter)
             current_stream = "[overlaid]"
     
