@@ -171,15 +171,15 @@ async def process_video(request: ProcessRequest):
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Rimuovi sfondo verde (chroma key) se richiesto
+            # Gestione overlay con trasparenza
             if request.remove_green_screen:
-                # chromakey bilanciato: similarity=0.3, blend=0.1
-                # Valori conservativi per non rimuovere parti del soggetto
+                # Chromakey per video con sfondo verde
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
                 filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=yuva420p[overlay_scaled]"
             else:
-                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
+                # Overlay con trasparenza nativa - preserva canale alpha
+                scale_filter = f"[1:v]format=yuva420p,scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
             filter_complex.append(scale_filter)
             
             # Posizione overlay - usa coordinate X/Y se fornite, altrimenti fallback a posizione predefinita
