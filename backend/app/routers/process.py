@@ -293,10 +293,12 @@ async def process_video(request: ProcessRequest):
     cmd.extend([
         "-threads", "1",  # Limita thread per ridurre RAM
         "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",  # IMPORTANTE: formato compatibile con tutti i dispositivi
         "-preset", "ultrafast",  # Più veloce, meno RAM
         "-crf", "28",  # Qualità leggermente inferiore ma meno RAM
         "-maxrate", "2M",  # Limita bitrate
         "-bufsize", "1M",  # Buffer piccolo
+        "-movflags", "+faststart",  # Ottimizza per streaming web
         "-c:a", "aac",
         "-b:a", "96k",  # Audio più leggero
         str(output_path)
