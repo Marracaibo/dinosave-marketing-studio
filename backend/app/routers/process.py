@@ -176,18 +176,23 @@ async def process_video(request: ProcessRequest):
                 # Chromakey per video con sfondo verde
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
                 filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=yuva420p[overlay_scaled]"
+                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=rgba[overlay_scaled]"
             else:
-                # Overlay con trasparenza nativa - preserva canale alpha
-                scale_filter = f"[1:v]format=yuva420p,scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos[overlay_scaled]"
+                # Overlay con trasparenza nativa (WebM) - preserva canale alpha con RGBA
+                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=rgba[overlay_scaled]"
             filter_complex.append(scale_filter)
+            
+            # Converti video base in formato che supporta alpha per overlay corretto
+            base_format = f"{current_stream}format=rgba[vbase_rgba]"
+            filter_complex.append(base_format)
+            current_stream = "[vbase_rgba]"
             
             # Posizione overlay - usa coordinate X/Y se fornite, altrimenti fallback a posizione predefinita
             if request.overlay_x is not None and request.overlay_y is not None:
                 pos = get_position_from_percent(request.overlay_x, request.overlay_y, "W", "H")
             else:
                 pos = get_position_filter(request.overlay_position, "W", "H", "w", "h")
-            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1[overlaid]"
+            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1:format=rgb[overlaid]"
             filter_complex.append(overlay_filter)
             current_stream = "[overlaid]"
     
