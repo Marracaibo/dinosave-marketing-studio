@@ -173,8 +173,10 @@ async def process_video(request: ProcessRequest):
             
             # Rimuovi sfondo verde (chroma key) se richiesto
             if request.remove_green_screen:
-                # chromakey rimuove il verde, poi scala
-                chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
+                # chromakey con parametri ottimizzati per green screen
+                # similarity=0.4 (più tollerante), blend=0.1 (bordi più netti)
+                # Prova prima verde puro, poi verde scuro comune nei video
+                chroma_filter = f"[1:v]chromakey=0x00FF00:0.4:0.05,chromakey=0x00B140:0.3:0.05[chroma]"
                 filter_complex.append(chroma_filter)
                 scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             else:
