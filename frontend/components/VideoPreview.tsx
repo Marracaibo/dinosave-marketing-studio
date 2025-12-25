@@ -30,6 +30,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [overlaySize, setOverlaySize] = useState(settings.overlayScale * 100)
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+  const [draggingOverlayIdx, setDraggingOverlayIdx] = useState<number | null>(null) // Per overlay già aggiunti
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
@@ -98,9 +99,27 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
     }
   }, [overlayPos])
 
+  // Handle drag per overlay già aggiunti
+  const handleAddedOverlayDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, idx: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDraggingOverlayIdx(idx)
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    const item = settings.overlays[idx]
+    
+    dragStartRef.current = {
+      x: clientX,
+      y: clientY,
+      posX: item.x,
+      posY: item.y
+    }
+  }, [settings.overlays])
+
   // Handle drag move
   useEffect(() => {
-    if (!isDragging && !isResizing) return
+    if (!isDragging && !isResizing && draggingOverlayIdx === null) return
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!containerRef.current) return
@@ -124,6 +143,20 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
         }
       }
       
+      // Drag overlay già aggiunto
+      if (draggingOverlayIdx !== null && updateSettings) {
+        const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
+        const deltaY = ((clientY - dragStartRef.current.y) / rect.height) * 100
+        
+        const item = settings.overlays[draggingOverlayIdx]
+        const newX = Math.max(0, Math.min(100 - (item.scale * 100), dragStartRef.current.posX + deltaX))
+        const newY = Math.max(0, Math.min(85, dragStartRef.current.posY + deltaY))
+        
+        const newOverlays = [...settings.overlays]
+        newOverlays[draggingOverlayIdx] = { ...item, x: newX, y: newY }
+        updateSettings({ overlays: newOverlays })
+      }
+      
       if (isResizing) {
         const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
         const newSize = Math.max(10, Math.min(60, dragStartRef.current.posX + deltaX))
@@ -139,6 +172,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
     const handleEnd = () => {
       setIsDragging(false)
       setIsResizing(false)
+      setDraggingOverlayIdx(null)
     }
 
     window.addEventListener('mousemove', handleMove)
@@ -272,27 +306,30 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                 </div>
               </div>
             )}
-            {/* Multi-Overlay Preview (overlay già aggiunti) */}
+            {/* Multi-Overlay Preview (overlay già aggiunti - TRASCINABILI) */}
             {showOriginal && settings.overlays.map((item, idx) => {
               const overlayInfo = allOverlays.find((o: any) => o.id === item.id)
               if (!overlayInfo) return null
               return (
                 <div 
                   key={idx}
-                  className="absolute pointer-events-none"
+                  className={`absolute cursor-move select-none ${draggingOverlayIdx === idx ? 'opacity-90 z-20' : 'z-10'}`}
                   style={{ 
                     left: `${item.x}%`,
                     top: `${item.y}%`,
                     width: `${item.scale * 100}%`,
                     maxWidth: '60%'
                   }}
+                  onMouseDown={(e) => handleAddedOverlayDragStart(e, idx)}
+                  onTouchStart={(e) => handleAddedOverlayDragStart(e, idx)}
                 >
                   {overlayInfo.type === 'video' ? (
-                    <video src={overlayInfo.url} autoPlay loop muted playsInline className="w-full h-auto opacity-70" />
+                    <video src={overlayInfo.url} autoPlay loop muted playsInline className="w-full h-auto pointer-events-none" />
                   ) : (
-                    <img src={overlayInfo.url} alt="Overlay" className="w-full h-auto opacity-70" />
+                    <img src={overlayInfo.url} alt="Overlay" className="w-full h-auto pointer-events-none" />
                   )}
-                  <div className="absolute top-0 left-0 bg-black/50 text-white text-xs px-1 rounded">
+                  <div className="absolute top-0 left-0 bg-primary-500/80 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <Move className="w-3 h-3" />
                     #{idx + 1}
                   </div>
                 </div>
