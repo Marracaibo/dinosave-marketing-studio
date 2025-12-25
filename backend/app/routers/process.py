@@ -250,13 +250,16 @@ async def process_video(request: ProcessRequest):
         if audio_filter:
             cmd.extend(["-af", audio_filter])
     
-    # Output settings
+    # Output settings - ottimizzato per bassa memoria (Render free tier 512MB)
     cmd.extend([
+        "-threads", "1",  # Limita thread per ridurre RAM
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
+        "-preset", "ultrafast",  # Più veloce, meno RAM
+        "-crf", "28",  # Qualità leggermente inferiore ma meno RAM
+        "-maxrate", "2M",  # Limita bitrate
+        "-bufsize", "1M",  # Buffer piccolo
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "96k",  # Audio più leggero
         str(output_path)
     ])
     
