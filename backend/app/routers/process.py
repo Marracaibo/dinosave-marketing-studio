@@ -171,28 +171,24 @@ async def process_video(request: ProcessRequest):
         if overlay_path.exists():
             cmd.extend(["-i", str(overlay_path)])
             
-            # Gestione overlay con trasparenza
+            # Scala overlay - semplice, FFmpeg gestisce automaticamente l'alpha di WebM
             if request.remove_green_screen:
                 # Chromakey per video con sfondo verde
                 chroma_filter = f"[1:v]chromakey=0x00FF00:0.3:0.1[chroma]"
                 filter_complex.append(chroma_filter)
-                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=rgba[overlay_scaled]"
+                scale_filter = f"[chroma]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             else:
-                # Overlay con trasparenza nativa (WebM) - preserva canale alpha con RGBA
-                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}:flags=lanczos,format=rgba[overlay_scaled]"
+                # WebM con trasparenza nativa - solo scala, FFmpeg preserva l'alpha automaticamente
+                scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             filter_complex.append(scale_filter)
             
-            # Converti video base in formato che supporta alpha per overlay corretto
-            base_format = f"{current_stream}format=rgba[vbase_rgba]"
-            filter_complex.append(base_format)
-            current_stream = "[vbase_rgba]"
-            
-            # Posizione overlay - usa coordinate X/Y se fornite, altrimenti fallback a posizione predefinita
+            # Posizione overlay
             if request.overlay_x is not None and request.overlay_y is not None:
                 pos = get_position_from_percent(request.overlay_x, request.overlay_y, "W", "H")
             else:
                 pos = get_position_filter(request.overlay_position, "W", "H", "w", "h")
-            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1:format=rgb[overlaid]"
+            # Overlay semplice - FFmpeg usa automaticamente l'alpha channel se presente
+            overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1[overlaid]"
             filter_complex.append(overlay_filter)
             current_stream = "[overlaid]"
     
