@@ -8,16 +8,10 @@ from io import BytesIO
 import asyncio
 import httpx
 
-# Rimozione sfondo: remove.bg API (gratuita 50 img/mese) o rembg locale
+# Rimozione sfondo: solo remove.bg API (gratuita 50 img/mese)
+# rembg rimosso perché causa OUT OF MEMORY su Render free tier
 REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
-
-# rembg locale (opzionale, richiede molta RAM)
 REMBG_AVAILABLE = False
-try:
-    from rembg import remove
-    REMBG_AVAILABLE = True
-except ImportError:
-    pass
 
 router = APIRouter()
 
