@@ -24,8 +24,8 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null)
   const [overlayType, setOverlayType] = useState<string>('video')
   
-  // Drag & resize state
-  const [overlayPos, setOverlayPos] = useState({ x: 70, y: 70 }) // percentuale
+  // Drag & resize state - inizializza dalle settings
+  const [overlayPos, setOverlayPos] = useState({ x: settings.overlayX ?? 70, y: settings.overlayY ?? 70 })
   const [overlaySize, setOverlaySize] = useState(settings.overlayScale * 100)
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -106,6 +106,11 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
         const newY = Math.max(0, Math.min(85, dragStartRef.current.posY + deltaY))
         
         setOverlayPos({ x: newX, y: newY })
+        
+        // Sincronizza con le settings per passare al backend
+        if (updateSettings) {
+          updateSettings({ overlayX: newX, overlayY: newY })
+        }
       }
       
       if (isResizing) {

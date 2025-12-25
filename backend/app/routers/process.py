@@ -25,7 +25,9 @@ ASSETS_DIR = Path("assets")
 class ProcessRequest(BaseModel):
     video_id: str
     overlay_id: Optional[str] = None
-    overlay_position: str = "bottom-right"  # top-left, top-right, bottom-left, bottom-right, center
+    overlay_position: str = "bottom-right"  # fallback se X/Y non forniti
+    overlay_x: Optional[float] = None  # Percentuale 0-100 dalla sinistra
+    overlay_y: Optional[float] = None  # Percentuale 0-100 dall'alto
     overlay_scale: float = 0.25  # 25% della dimensione video
     remove_green_screen: bool = True  # Rimuovi sfondo verde dall'overlay
     audio_id: Optional[str] = None
@@ -48,7 +50,7 @@ class ProcessResponse(BaseModel):
     message: str
 
 def get_position_filter(position: str, video_w: str, video_h: str, overlay_w: str, overlay_h: str, margin: int = 20):
-    """Calcola la posizione FFmpeg per l'overlay"""
+    """Calcola la posizione FFmpeg per l'overlay (fallback)"""
     positions = {
         "top-left": f"{margin}:{margin}",
         "top-right": f"{video_w}-{overlay_w}-{margin}:{margin}",
@@ -57,6 +59,13 @@ def get_position_filter(position: str, video_w: str, video_h: str, overlay_w: st
         "center": f"({video_w}-{overlay_w})/2:({video_h}-{overlay_h})/2",
     }
     return positions.get(position, positions["bottom-right"])
+
+def get_position_from_percent(x_percent: float, y_percent: float, video_w: str, video_h: str):
+    """Calcola la posizione FFmpeg da coordinate percentuali (0-100)"""
+    # x_percent e y_percent sono 0-100, converti in posizione FFmpeg
+    x = f"({video_w}*{x_percent/100})"
+    y = f"({video_h}*{y_percent/100})"
+    return f"{x}:{y}"
 
 def get_text_position_filter(position: str):
     """Posizione del testo"""
@@ -172,11 +181,11 @@ async def process_video(request: ProcessRequest):
                 scale_filter = f"[1:v]scale=iw*{request.overlay_scale}:ih*{request.overlay_scale}[overlay_scaled]"
             filter_complex.append(scale_filter)
             
-            # Posizione overlay
-            pos = get_position_filter(
-                request.overlay_position, 
-                "W", "H", "w", "h"
-            )
+            # Posizione overlay - usa coordinate X/Y se fornite, altrimenti fallback a posizione predefinita
+            if request.overlay_x is not None and request.overlay_y is not None:
+                pos = get_position_from_percent(request.overlay_x, request.overlay_y, "W", "H")
+            else:
+                pos = get_position_filter(request.overlay_position, "W", "H", "w", "h")
             overlay_filter = f"{current_stream}[overlay_scaled]overlay={pos}:shortest=1[overlaid]"
             filter_complex.append(overlay_filter)
             current_stream = "[overlaid]"

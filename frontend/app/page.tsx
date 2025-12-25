@@ -21,6 +21,8 @@ export interface VideoState {
 export interface EditSettings {
   overlayId: string | null
   overlayPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'
+  overlayX: number  // Percentuale 0-100
+  overlayY: number  // Percentuale 0-100
   overlayScale: number
   removeGreenScreen: boolean
   audioId: string | null
@@ -49,6 +51,8 @@ export default function Home() {
   const [settings, setSettings] = useState<EditSettings>({
     overlayId: null,
     overlayPosition: 'bottom-right',
+    overlayX: 70,  // Default bottom-right
+    overlayY: 70,
     overlayScale: 0.25,
     removeGreenScreen: true,
     audioId: null,
