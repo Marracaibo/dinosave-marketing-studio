@@ -42,6 +42,8 @@ export interface EditSettings {
   removeOriginalAudio: boolean
   textOverlay: string
   textPosition: 'top-left' | 'top-center' | 'top-right' | 'center' | 'bottom-center'
+  textX: number  // Percentuale 0-100
+  textY: number  // Percentuale 0-100
   textFontSize: number
   // Video editing
   trimStart: number
@@ -74,6 +76,8 @@ export default function Home() {
     removeOriginalAudio: false,
     textOverlay: '',
     textPosition: 'top-center',
+    textX: 50,
+    textY: 10,
     textFontSize: 48,
     // Video editing defaults
     trimStart: 0,

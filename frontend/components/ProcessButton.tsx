@@ -59,6 +59,8 @@ export default function ProcessButton({
           remove_original_audio: settings.removeOriginalAudio,
           text_overlay: settings.textOverlay || null,
           text_position: settings.textPosition,
+          text_x: settings.textX,
+          text_y: settings.textY,
           text_font_size: settings.textFontSize,
           // Video editing
           trim_start: settings.trimStart,

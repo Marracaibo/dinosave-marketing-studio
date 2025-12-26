@@ -47,6 +47,8 @@ class ProcessRequest(BaseModel):
     remove_original_audio: bool = False
     text_overlay: Optional[str] = None
     text_position: str = "top-center"
+    text_x: Optional[float] = None  # Percentuale 0-100
+    text_y: Optional[float] = None  # Percentuale 0-100
     text_font_size: int = 48
     # Video editing
     trim_start: float = 0  # Secondi dall'inizio
@@ -254,7 +256,12 @@ async def process_video(request: ProcessRequest):
     
     # Testo overlay
     if request.text_overlay:
-        text_pos = get_text_position_filter(request.text_position)
+        # Usa coordinate custom se fornite, altrimenti usa preset
+        if request.text_x is not None and request.text_y is not None:
+            text_pos = f"x=(w*{request.text_x/100}-text_w/2):y=(h*{request.text_y/100}-text_h/2)"
+        else:
+            text_pos = get_text_position_filter(request.text_position)
+        
         # Escape caratteri speciali per FFmpeg
         escaped_text = request.text_overlay.replace("'", "'\\''").replace(":", "\\:")
         text_filter = (
