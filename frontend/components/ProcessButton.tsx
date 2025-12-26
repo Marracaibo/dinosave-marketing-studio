@@ -40,7 +40,14 @@ export default function ProcessButton({
         body: JSON.stringify({
           video_id: video.videoId,
           // Overlay multipli (priorità) o singolo (legacy)
-          overlays: settings.overlays.length > 0 ? settings.overlays : null,
+          overlays: settings.overlays.length > 0 ? settings.overlays.map(o => ({
+            id: o.id,
+            x: o.x,
+            y: o.y,
+            scale: o.scale,
+            remove_green_screen: o.removeGreenScreen,
+            remove_black_screen: o.removeBlackScreen,
+          })) : null,
           overlay_id: settings.overlays.length === 0 ? settings.overlayId : null,
           overlay_position: settings.overlayPosition,
           overlay_x: settings.overlayX,
