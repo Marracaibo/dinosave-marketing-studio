@@ -37,6 +37,10 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
   const [tempOverlayPos, setTempOverlayPos] = useState<{x: number, y: number} | null>(null)
   const [tempOverlayScale, setTempOverlayScale] = useState<number | null>(null)
   
+  // State per testo trascinabile
+  const [isDraggingText, setIsDraggingText] = useState(false)
+  const [tempTextPos, setTempTextPos] = useState<{x: number, y: number} | null>(null)
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, scale: 0 })
@@ -147,9 +151,28 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
     }
   }, [settings.overlays])
 
+  // Handle drag testo
+  const handleTextDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingText(true)
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    setTempTextPos({ x: settings.textX, y: settings.textY })
+    dragStartRef.current = {
+      x: clientX,
+      y: clientY,
+      posX: settings.textX,
+      posY: settings.textY,
+      scale: 0
+    }
+  }, [settings.textX, settings.textY])
+
   // Handle drag move
   useEffect(() => {
-    if (!isDragging && !isResizing && activeOverlayIdx === null) return
+    if (!isDragging && !isResizing && activeOverlayIdx === null && !isDraggingText) return
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!containerRef.current) return
@@ -199,6 +222,17 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
           updateSettings({ overlayScale: newSize / 100 })
         }
       }
+      
+      // Drag testo
+      if (isDraggingText) {
+        const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100
+        const deltaY = ((clientY - dragStartRef.current.y) / rect.height) * 100
+        
+        const newX = Math.max(0, Math.min(90, dragStartRef.current.posX + deltaX))
+        const newY = Math.max(0, Math.min(85, dragStartRef.current.posY + deltaY))
+        
+        setTempTextPos({ x: newX, y: newY })
+      }
     }
 
     const handleEnd = () => {
@@ -217,12 +251,19 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
         updateSettings({ overlays: newOverlays })
       }
       
+      // Salva posizione testo
+      if (isDraggingText && tempTextPos && updateSettings) {
+        updateSettings({ textX: tempTextPos.x, textY: tempTextPos.y })
+      }
+      
       setIsDragging(false)
       setIsResizing(false)
       setActiveOverlayIdx(null)
       setActiveOverlayAction(null)
       setTempOverlayPos(null)
       setTempOverlayScale(null)
+      setIsDraggingText(false)
+      setTempTextPos(null)
     }
 
     window.addEventListener('mousemove', handleMove)
@@ -236,7 +277,7 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
       window.removeEventListener('touchmove', handleMove)
       window.removeEventListener('touchend', handleEnd)
     }
-  }, [isDragging, isResizing, overlaySize, updateSettings])
+  }, [isDragging, isResizing, overlayPos, overlaySize, updateSettings, activeOverlayIdx, activeOverlayAction, tempOverlayPos, tempOverlayScale, settings.overlays, isDraggingText, tempTextPos, settings.textX, settings.textY])
 
   // Handle resize start
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -402,23 +443,28 @@ export default function VideoPreview({ video, outputUrl, settings, updateSetting
                 </div>
               )
             })}
-            {/* Text Overlay Preview */}
+            {/* Text Overlay Preview - TRASCINABILE */}
             {showOriginal && settings.textOverlay && (
               <div 
-                className={`absolute pointer-events-none px-3 py-1 ${
-                  settings.textPosition === 'top-left' ? 'top-2 left-2' :
-                  settings.textPosition === 'top-center' ? 'top-2 left-1/2 -translate-x-1/2' :
-                  settings.textPosition === 'top-right' ? 'top-2 right-2' :
-                  settings.textPosition === 'center' ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' :
-                  'bottom-12 left-1/2 -translate-x-1/2'
-                }`}
+                className={`absolute cursor-move select-none px-3 py-1 ${isDraggingText ? 'z-30 ring-2 ring-yellow-400' : 'z-10'}`}
+                style={{ 
+                  left: `${tempTextPos?.x ?? settings.textX}%`,
+                  top: `${tempTextPos?.y ?? settings.textY}%`,
+                  transform: 'translate(-50%, -50%)'
+                }}
+                onMouseDown={handleTextDragStart}
+                onTouchStart={handleTextDragStart}
               >
                 <span 
-                  className="text-white font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  className="text-white font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] pointer-events-none"
                   style={{ fontSize: `${Math.min(settings.textFontSize / 2, 24)}px` }}
                 >
                   {settings.textOverlay}
                 </span>
+                <div className="absolute -top-1 -right-1 bg-yellow-500/80 text-white text-xs px-1 py-0.5 rounded flex items-center gap-1">
+                  <Move className="w-3 h-3" />
+                  T
+                </div>
               </div>
             )}
           </>
