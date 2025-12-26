@@ -30,21 +30,30 @@ def get_yt_dlp_options(video_id: str):
     return {
         'format': 'best[ext=mp4]/best',
         'outtmpl': str(TEMP_DIR / f'{video_id}.%(ext)s'),
-        'quiet': True,
-        'no_warnings': True,
+        'quiet': False,  # Mostra errori dettagliati
+        'no_warnings': False,
         'extract_flat': False,
-        # User agent per evitare blocchi
+        # User agent aggiornato
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.instagram.com/',
         },
-        # TikTok: usa API mobile per evitare watermark
+        # Instagram: usa cookies e API mobile
         'extractor_args': {
+            'instagram': {
+                'api_hostname': 'i.instagram.com',
+            },
             'tiktok': {
                 'api_hostname': 'api22-normal-c-useast2a.tiktokv.com',
             }
         },
+        # Retry e timeout
+        'retries': 3,
+        'fragment_retries': 3,
+        'socket_timeout': 30,
     }
 
 async def download_video_async(url: str, video_id: str) -> dict:
